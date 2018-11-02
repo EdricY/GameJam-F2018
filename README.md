@@ -4,5 +4,5 @@
 - Edric Yu (Programmer)
 - Luke Brom (Programmer)
 - Noah Lindsey (Level Designer)
-- Joshua Raugh (Composer)
+- Joshua Rauh (Composer)
 - Ryan Jones (Asset Manager)
