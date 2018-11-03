@@ -32,6 +32,8 @@ var keys = {};
 var lastKeys = {};
 var lastTime
 var cameravx = 0.5;
+var mouseX = 0;
+var mouseY = 0;
 
 let W = renderer.width
 let H = renderer.height
@@ -45,6 +47,7 @@ var tileimgdata = []
 var worldframeimgdatas = []
 var worldframes = []
 var frames = []
+var bombs = []
 var camerax = 0;
 var lastTime = Date.now();
 
@@ -70,7 +73,8 @@ var player = {
 	mvy: 20,
 	jumps: 1,
     step_h: 16,
-	midair: true,
+    midair: true,
+    bombCooldown: 0,
     draw() {
         ctx.fillStyle = 'red';
         let f_x = Math.floor(this.x - camerax);
@@ -78,6 +82,9 @@ var player = {
         ctx.fillRect(f_x, f_y, this.w, this.h, this.color);
     },
     update() {
+        if(this.bombCooldown > 0) {
+            this.bombCooldown -= 1
+        }
         this.vy += GRAVITY;
         if (keys[37] || keys[65]) { //left
             this.vx -= this.ax;
@@ -88,6 +95,12 @@ var player = {
             this.vx += this.ax;
             if (this.vx > this.maxv)
                 this.vx = this.maxv;
+        }
+        if (keys[32] && !lastKeys[32] && this.bombCooldown === 0) {
+            this.bombCooldown = 100;
+            vx = mouseX - this.x - camerax
+            vy = mouseY - this.y
+            bombs.push(makeBomb(this.x, this.y, vx, vy));
         }
         if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
             this.vy = -18;
@@ -145,6 +158,83 @@ var player = {
             this.vx = 0;
         }
     }
+}
+
+function makeBomb(x, y, vx, vy) {
+    var bomb = {
+        x: x,
+        y: y,
+        vx: vx > 0 ? 30 : -30,
+        vy: vy % 50,
+        w: 10,
+        h: 10,
+        countdown: 100,
+        draw() {
+            ctx.fillStyle = 'black';
+            let f_x = Math.floor(this.x - camerax);
+            let f_y = Math.floor(this.y);
+            ctx.fillRect(f_x, f_y, this.w, this.h, this.color);
+        },
+        update() {
+            this.countdown -= 1;
+            if(this.countdown == 0) {
+                bombs.pop()
+                setTimeout(() => {
+    explode(this.x, this.y, 50)
+}, 0)
+            }
+            this.vy += GRAVITY;
+            if (this.vy >= 0) { //moving down
+                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
+                if (y_cls == null) {
+                    this.y += this.vy;
+                } else { //landed on something
+                    this.vy = 0;
+                    this.y = y_cls.y;
+                }
+            } else { //moving up
+                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.w, this.h);
+                if (y_cls == null) {
+                    this.y += this.vy;
+                } else { //hit your head
+                    this.vy = 0;
+                    this.y = y_cls.y;
+                }
+            }
+            if (this.vx > 0) { //moving right
+                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.w, this.h);
+                if (x_cls == null) this.x += this.vx;
+                else { //hit wall
+                    let step_h = this.y + this.h - x_cls.y;
+                    if (step_h <= this.step_h) {
+                        this.x = x_cls.x + 1;
+                        this.y -= step_h; //not implemented: climbing more than 1 step
+                    } else {
+                        this.vx = 0;
+                        this.x = x_cls.x;
+                    }
+                }
+            } else if(this.vx < 0) { //moving left
+                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.w, this.h);
+                if (x_cls == null) this.x += this.vx;
+                else { //hit wall
+                    let step_h = this.y + this.h - x_cls.y;
+                    if (step_h <= this.step_h) {
+                        this.x = x_cls.x - 1;
+                        this.y -= step_h; //not implemented: climbing more than 1 step
+                    } else {
+                        this.vx = 0;
+                        this.x = x_cls.x;
+                    }
+                }
+            }
+            this.vx *= FRICTION;
+            if (Math.abs(this.vx) - .01 < 0) {
+                this.vx = 0;
+            }
+        }
+    }
+    return bomb;
 }
 
 function Point(x, y) {
@@ -205,6 +295,9 @@ function loadFrameimgdata(frame) {
 
 function update() {
     player.update()
+    for(let i = 0; i < bombs.length; i++) {
+        bombs[i].update();
+    }
     lastKeys = JSON.parse(JSON.stringify(keys)); //deep copy
 }
 
@@ -294,6 +387,9 @@ function draw() {
     ctx.drawImage(alphacanvas, 0, 0)
 
     Particles.draw(ctx)
+    for(let i = 0; i < bombs.length; i++) {
+        bombs[i].draw();
+    }
     player.draw();
 }
 
@@ -388,6 +484,11 @@ onkeydown = e => {
 onkeyup = e => {
 	let k = e.keyCode;
 	keys[k] = false;
+}
+
+onmousemove = e => {
+    mouseX = e.clientX
+    mouseY = e.clientY
 }
 
 </script>
