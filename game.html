@@ -131,11 +131,11 @@ var player = {
         }
         if (keys[32] && !lastKeys[32] && this.bombCooldown === 0) {
             this.bombCooldown = 100;
-            dx = mouseX - (this.x - camerax)
-            dy = mouseY - this.y
-            dc = Math.sqrt(dx ** 2 + dy ** 2)
-            vx = dx / dc * 20
-            vy = dy / dc * 20
+            let dx = mouseX - (this.x - camerax)
+            let dy = mouseY - this.y
+            let dc = Math.sqrt(dx ** 2 + dy ** 2)
+            let vx = dx / dc * 20
+            let vy = dy / dc * 20
             bombs.push(makeBomb(this.x, this.y, vx, vy));
         }
         if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
@@ -375,6 +375,7 @@ function setWorldAlpha(x, y, val) {
     x = x % W
     let myframe = worldframeimgdatas[framenum];
     let pos = 4 * (x + y*W) + 3;
+    if(pos > myframe.data.length) return
     myframe.data[pos] = val;
 }
 
@@ -420,6 +421,7 @@ function explode(ox, oy, range) {
     ox = Math.floor(ox);
     oy = Math.floor(oy);
     Particles.explode(ox, oy, 'red', range/10)
+    throwPlayer(ox, oy, range);    
     for (let y = oy - range; y < oy + range; y++) {
         for (let x = ox - range; x < ox + range; x++) {
             let ydist = y-oy;
@@ -428,6 +430,18 @@ function explode(ox, oy, range) {
                 setWorldAlpha(x, y, 0)
             }
         }
+    }
+}
+
+function throwPlayer(x, y, range) {
+    let dx = (player.x + player.w / 2) - x;
+    let dy = (player.y + player.h / 2) - y
+    if(Math.abs(dx) < range && Math.abs(dy) < range) {
+        let dc = Math.sqrt(dx ** 2 + dy ** 2)
+        let vx = dx / Math.abs(dx) / dc * 1000
+        let vy = dy / Math.abs(dy) / dc * 500
+        player.vx += Math.floor(vx)
+        player.vy += Math.floor(vy)
     }
 }
 
