@@ -9,7 +9,7 @@
     </div>
     <canvas id="canvas" width="768" height="512"></canvas>
     <canvas hidden id="renderer" width="768" height="512"></canvas>
-    <canvas id="alphacanvas" width="768" height="512"></canvas>
+    <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
     <canvas hidden id="frameloader" width="32" height="32"></canvas>
 <!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
@@ -38,11 +38,14 @@ const TILES = {
     '0,0,0,0': null, //background
     '0,0,0,255': 0, //blocks
 }
+const GRAVITY = 1;
+const FRICTION = .85;
 var tileimgdata = []
 var worldframeimgdatas = []
 var worldframes = []
 var frames = []
 var camerax = 0;
+var lastTime = Date.now();
 
 const frameHtmlImgs = [
     frame1,
@@ -52,6 +55,101 @@ const frameHtmlImgs = [
 const tileHtmlImgs = [
     tileimg,
 ]
+
+var player = {
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    w: 32,
+	h: 64,
+    ax: .6,
+	jv: -18,
+	mvx: 50,
+	mvy: 20,
+	jumps: 1,
+    step_h: 16,
+	midair: true,
+    draw() {
+        ctx.fillStyle = 'red';
+        let f_x = Math.floor(this.x - camerax);
+        let f_y = Math.floor(this.y);
+        ctx.fillRect(f_x, f_y, this.w, this.h, this.color);
+    },
+    update() {
+        this.vy += GRAVITY;
+        if (keys[37] || keys[65]) { //left
+            this.vx -= this.ax;
+            if (this.vx < -this.maxv)
+                this.vx = -this.maxv;
+        }
+        if (keys[39] || keys[68]) { //right
+            this.vx += this.ax;
+            if (this.vx > this.maxv)
+                this.vx = this.maxv;
+        }
+        if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
+            this.vy = -18;
+        }
+        if (this.vy >= 0) { //moving down
+            let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
+            if (y_cls == null) {
+                this.y += this.vy;
+                this.midair = true;
+            } else { //landed on something
+                this.vy = 0;
+                this.y = y_cls.y;
+                this.midair = false;
+            }
+        } else { //moving up
+            let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.w, this.h);
+            this.midair = true;
+            if (y_cls == null) {
+                this.y += this.vy;
+            } else { //hit your head
+                this.vy = 0;
+                this.y = y_cls.y;
+                this.midair = false;
+            }
+        }
+        if (this.vx > 0) { //moving right
+            let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.w, this.h);
+            if (x_cls == null) this.x += this.vx;
+            else { //hit wall
+                let step_h = this.y + this.h - x_cls.y;
+                if (step_h <= this.step_h) {
+                    this.x = x_cls.x + 1;
+                    this.y -= step_h; //not implemented: climbing more than 1 step
+                } else {
+                    this.vx = 0;
+                    this.x = x_cls.x;
+                }
+            }
+        } else if(this.vx < 0) { //moving left
+            let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.w, this.h);
+            if (x_cls == null) this.x += this.vx;
+            else { //hit wall
+                let step_h = this.y + this.h - x_cls.y;
+                if (step_h <= this.step_h) {
+                    this.x = x_cls.x - 1;
+                    this.y -= step_h; //not implemented: climbing more than 1 step
+                } else {
+                    this.vx = 0;
+                    this.x = x_cls.x;
+                }
+            }
+        }
+        this.vx *= FRICTION;
+        if (Math.abs(this.vx) - .01 < 0) {
+            this.vx = 0;
+        }
+    }
+}
+
+function Point(x, y) {
+    this.x = x;
+    this.y = y;
+}
 
 setTimeout(() => {
     init();
@@ -74,7 +172,7 @@ function init() {
 
     //load into worlddata
 
-    worldframes = [1,2,0]
+    worldframes = [0,2,0]
     for (let f of worldframes) {
         loadFrameimgdata(frames[f])
     }
@@ -162,7 +260,7 @@ function getWorldAlpha(x, y) {
     let framenum = Math.floor(x / W);
     x = x % W
     let myframe = worldframeimgdatas[framenum];
-    getAlpha(myframe, y, x);
+    return getAlpha(myframe, y, x);
 }
 
 function getAlpha(frameimgdata, row, col) {
@@ -187,6 +285,7 @@ function draw() {
     ctx.drawImage(alphacanvas, 0, 0)
 
     Particles.draw(ctx)
+    player.draw();
 }
 
 function explode(ox, oy, range) {
@@ -200,6 +299,75 @@ function explode(ox, oy, range) {
             }
         }
     }
+}
+
+/* returns Point(x,y)
+ * y: suggested relocation
+ * x: collision position
+ */
+ function findYCollisionDown(y, vy, x, width, height) {
+    vy = Math.round(vy);
+    if (vy <= 0) return null;
+    y = Math.floor(y);
+    x = Math.floor(x);
+    let bottom = y + height
+    for (let r = bottom; r < bottom + vy; r++) {
+        if (r >= H) return new Point(x, H - height);
+        for (let c = x; c < x + width; c++) {
+            if (getWorldAlpha(c, r) !== 0) {
+                return new Point(c, r - height);
+            }
+        }
+    }
+    return null;
+}
+function findYCollisionUp(y, vy, x, width, height) {
+    vy = Math.round(vy);
+    if (vy >= 0) return null;
+    y = Math.floor(y);
+    x = Math.floor(x);
+    for (let r = y-1; r > y + vy-1; r--) {
+        if (r <= 0) return new Point(x, 0);
+        for (let c = x; c < x + width; c++) {
+            if (getWorldAlpha(c, r) !== 0) {
+                return new Point(c, r+1);
+            }
+        }
+    }
+    return null;
+}
+/* returns Point(x,y)
+ * y: collision position
+ * x: suggested relocation
+ */
+function findXCollisionRight(x, vx, y, width, height) {
+    vx = Math.round(vx);
+    if (vx <= 0) return null;
+    x = Math.floor(x);
+    y = Math.floor(y);
+    let right = x + width;
+    for (let c = right; c < right + vx; c++) {
+        for (let r = y; r < y + height; r++) {
+            if (getWorldAlpha(c, r) !== 0) {
+                return new Point(c - width, r);
+            }
+        }
+    }
+    return null
+}
+function findXCollisionLeft(x, vx, y, width, height) {
+    vx = Math.round(vx);
+    if (vx >= 0) return null;
+    x = Math.floor(x);
+    y = Math.floor(y);
+    for (let c = x-1; c > x + vx-1; c--) {
+        for (let r = y; r < y + height; r++) {
+            if (getWorldAlpha(c, r) !== 0) {
+                return new Point(c+1, r);
+            }
+        }
+    }
+    return null;
 }
 
 onkeydown = e => {
