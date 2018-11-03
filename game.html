@@ -2,15 +2,54 @@
 <html>
 <meta charset="UTF-8">
     <title>THE GAME TITLE!</title>
+
+    <style>
+        body {
+            display: flex;
+            flex-flow: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .center{
+            flex: 1;
+        }
+        #players_ul{
+            display: table;
+            margin: 100px auto;
+        }
+        #readybtn{
+            margin: 0 auto;
+            display: table;
+            margin-top: 10px;
+        }
+        #gamediv{
+            margin-top: 20px;
+        }
+
+    </style>
+          
 </head>
-<body>
-    <div id="loadmsg">
-        Loading...
+<body id="body">
+
+    <div id="connectdiv">
+        <div id="connectmsg"></div>
+        <ul id="players_ul"></ul>
+        <div id="buttonsdiv">
+            <button type="button" id="readybtn" onclick="sendReady(true)">Ready!</button>
+            <button type="button" id="readybtn" onclick="sendReady(false)">Hold On...</button>
+        </div>
     </div>
-    <canvas id="canvas" width="768" height="512"></canvas>
-    <canvas hidden id="renderer" width="768" height="512"></canvas>
-    <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
-    <canvas hidden id="frameloader" width="32" height="32"></canvas>
+              
+
+    <div id="gamediv" class="center">
+        <div id="loadmsg">
+            Loading...
+        </div>
+        <canvas id="canvas" width="768" height="512"></canvas>
+        <canvas hidden id="renderer" width="768" height="512"></canvas>
+        <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
+        <canvas hidden id="frameloader" width="32" height="32"></canvas>
+    </div>
 <!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
 
@@ -50,6 +89,12 @@ var cameravx = 0.5;
 var mouseX = 0;
 var mouseY = 0;
 
+var socket;
+var myServer = getParameterByName('s')
+var myName = getParameterByName('n')
+var myChoice = getParameterByName('c')
+
+
 let W = renderer.width
 let H = renderer.height
 const TILES = {
@@ -63,13 +108,20 @@ const TILES = {
     '255,0,110,255': 6,
     '0,0,0,255': 7,
 }
+
+const PLAYERLIST = -2;
+const READY = -1;
+const CONNECT = 0;
+const TICK = 1;
+const BOMB = 2;
 const GRAVITY = 1;
 const FRICTION = .85;
 const BOMB_FRICTION = .97;
 var tileimgdata = []
-var worldframeimgdatas = []
-var worldframes = []
-var frames = []
+var worldframeimgdatas = [] // actual world data
+var worldframes = [] // heavyweight version of frames (same for all)
+var worldframeorder = [] // get this from server
+var frames = [] //lightweight version of frames
 var bombs = []
 var camerax = 0;
 var lastTime = Date.now();
@@ -196,6 +248,67 @@ var player = {
     }
 }
 
+function connect() {
+	connectmsg.innerText = "Connecting...";
+    var url = 'ws://' + myServer + ':8191';
+    socket = new WebSocket(url);
+    socket.onopen = function () {
+		connectmsg.hidden = true;
+		gamediv.hidden = false;
+		document.getElementById("body").style.backgroundColor = "#888";
+		socket.send(newPacket(CONNECT, {name: myName, choice: myChoice}));
+        buttonsdiv.hidden = false;
+    }
+    socket.onclose = e => {
+        console.log('close')
+        connectdiv.hidden = false;
+		connectmsg.hidden = false;
+        gamediv.hidden = true;
+        players_ul.hidden = true;
+        players_ul.style.display = 'none';
+        gamediv.style.display = 'none';
+        document.getElementById("body").style.backgroundColor = "#FFF";
+		connectmsg.innerText = "Connection Closed. You can try reloading, but the server is probably down.";
+        buttonsdiv.hidden = true;
+    }
+    socket.onmessage = e => { //Receiving packets
+        let data = JSON.parse(e.data);
+        if (data.type == PLAYERLIST) { //used before game starts
+            replacePlayerList(data.obj.playerlist);
+        } else if (data.type == READY) {
+            console.log("starting")
+            connectdiv.hidden = true;
+            initGame();
+        }
+    }
+}
+
+function sendReady(status) {
+    socket.send(newPacket(READY, status))
+}
+
+
+function newPacket(type, obj){
+	return JSON.stringify({'type': type, 'obj': obj});
+}
+
+function replacePlayerList(playerlist){
+    while (players_ul.hasChildNodes()) {
+        players_ul.removeChild(players_ul.lastChild);
+    }
+    for (let p of playerlist) {
+        let readyText = p.ready ? "" : ": Waiting..."
+        let node = document.createTextNode(p.name + readyText);
+        let lsit = document.createElement("li");
+        lsit.appendChild(node);
+        lsit.style.color = p.ready ? "green" : "red"
+        lsit.style.padding = '10px';
+        players_ul.appendChild(lsit);
+    }
+
+}
+
+
 function makeBomb(x, y, vx, vy) {
     var bomb = {
         x: x,
@@ -265,10 +378,10 @@ function Point(x, y) {
 }
 
 setTimeout(() => {
-    init();
+    connect();
 }, 500)
 
-function init() {
+function initGame() {
     gameInt = setInterval(tick, 1);
     //load frames
     for (let img of frameHtmlImgs) {
@@ -283,16 +396,24 @@ function init() {
         tileimgdata.push(getFrameData(true))
     }
 
-    //load into worlddata
+    //load into worldframes
 
-    worldframes = [0,1,2,3,4,5]
-    for (let f of worldframes) {
+    for (let f in frames) {
         loadFrameimgdata(frames[f])
     }
     clearCanvas(renderer, ctx);
 
+    // TODO: get from server
+    worldframeorder = [0,1,2,3,4,5]
+    for (let i of worldframeorder) {
+        worldframeimgdatas.push(worldframes[i])
+    }
+
+    setupInputs();
+
     flushToCanvas()
     if (typeof loadmsg !== 'undefined') loadmsg.parentNode.removeChild(loadmsg);
+
 }
 
 
@@ -313,7 +434,7 @@ function loadFrameimgdata(frame) {
     //store in frameimgdata(temp)
     let fd = ctx.getImageData(0, 0, W, H)
     //push to worldframeimgdatas
-    worldframeimgdatas.push(fd);
+    worldframes.push(fd);
 }
 
 function update() {
@@ -328,7 +449,7 @@ function tick() {
     if(camerax + cameravx < (worldframeimgdatas.length - 1) * W) {
         camerax += cameravx;
     } else {
-        camerax = (worldframes.length - 1) * W
+        camerax = (worldframeimgdatas.length - 1) * W
     }
     if (Date.now() - lastTime > 10) {
         lastTime = Date.now();
@@ -502,23 +623,36 @@ function findXCollisionLeft(x, vx, y, width, height) {
     return null;
 }
 
-onkeydown = e => {
-	let k = e.keyCode;
-	keys[k] = true;
+
+function setupInputs() {
+    onkeydown = e => {
+        let k = e.keyCode;
+        keys[k] = true;
+    }
+    
+    onkeyup = e => {
+        let k = e.keyCode;
+        keys[k] = false;
+    }
+    
+    onmousemove = e => {
+        mouseX = e.clientX
+        mouseY = e.clientY
+    }
+    
+    onclick = e => {
+        explode(e.clientX + camerax, e.clientY, 100)
+    }
 }
 
-onkeyup = e => {
-	let k = e.keyCode;
-	keys[k] = false;
-}
-
-onmousemove = e => {
-    mouseX = e.clientX
-    mouseY = e.clientY
-}
-
-onclick = e => {
-    explode(e.clientX + camerax, e.clientY, 100)
+function getParameterByName(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+    results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
 </script>

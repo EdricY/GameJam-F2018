@@ -4,5 +4,58 @@
     <title>GameJam!</title>
 </head>
 <body>
-    <a href="game.html">Go to Game</a>
+    <div>
+        IP Address <input required id="ipaddress" name="ipaddress" type="text" value="localhost">
+    </div>
+    <div>
+        Name <input required id="namebox" name="name" type="text" value="Edric" maxlength="16">
+    </div>
+    Choose your Animal <select name="animal" id="animal">
+        <option value="0">Dog</option>
+        <option value="1">Cat</option>
+    </select>
+    <div>
+        <button onclick="joinGame()">Join!</button>
+    </div>
+    <div id="msg"></div>
 </body>
+<script>
+    var ipaddress = document.getElementById('ipaddress');
+    var namebox = document.getElementById('namebox');
+    var animal = document.getElementById('animal');
+
+    function joinGame() {
+        let ipaddr = ipaddress.value;
+        let name = namebox.value.substring(0, 16);
+        let choice = animal.value;
+        if (!ipaddr || !name){
+            msg.innerHTML = 'Missing Server IP or Name'
+            return;
+        }
+        
+        // msg.innerText = "Testing Connection..."
+        // ping('https://' + ipaddr + ':8192/playing').then( response => {
+        //     msg.innerText = response.status
+        // });
+
+        window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/game.html?s="
+         + ipaddr + '&n=' + name + '&c='+ choice;
+    }
+
+/*
+    function ping(address){
+        return new Promise( () => {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                console.log(this)
+                if (this.readyState == 4){
+                    return this.response;
+                }
+            }
+            xhttp.open("GET", address);
+            xhttp.send();
+        });
+    }
+*/
+
+</script>
