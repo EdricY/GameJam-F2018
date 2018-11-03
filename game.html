@@ -104,6 +104,7 @@ var lastKeys = {};
 var lastTime
 var mouseX = 0;
 var mouseY = 0;
+var TO_RADIANS = Math.PI/180; 
 
 var socket;
 var myServer = getParameterByName('s')
@@ -542,10 +543,12 @@ function makeBomb() {
         vy: vy,
         r: 10 + powerlevel,
         countdown: 20,
+        rotation: 0,
         getAsObj() {
             return {x:this.x, y:this.y, r:this.r}
         },
         update() {
+            this.rotation += this.vx;
             this.countdown -= 1;
             if(this.countdown <= 0) {
                 bombs[mySID].pop()
@@ -682,14 +685,14 @@ function makeStickyBomb() {
     }
 }
 
-function drawBomb(x, y, rw, rh, color) {
+function drawBomb(x, y, rw, rh, color, rotate) {
     let f_x = Math.floor(x - camerax);
     let f_y = Math.floor(y);
-    ctx.drawImage(bomb, f_x, f_y, rw, rh);
-    // ctx.beginPath();
-    // ctx.ellipse(f_x, f_y, rw, rh, 0, 0, tau);
-    // ctx.fillStyle = color;
-    // ctx.fill()
+    ctx.save();
+    ctx.translate(f_x, f_y)
+    ctx.rotate(rotate * TO_RADIANS)
+    ctx.drawImage(bomb, -(rw/2), -(rh/2), rw, rh);
+    ctx.restore()
 }
 
 function Point(x, y) {
@@ -899,7 +902,7 @@ function draw() {
     for(let i = 0; i < bombs.length; i++) {
         for(let j = 0; j < bombs[i].length; j++) {
             let b = bombs[i][j]
-            if (b) drawBomb(b.x, b.y, b.r, b.r, 'black')
+            if (b) drawBomb(b.x, b.y, b.r, b.r, 'black', b.rotation)
         }
     }
     for (let a of ammoboxes) {
