@@ -135,6 +135,7 @@ var lastKeys = {};
 var lastTime
 var mouseX = 0;
 var mouseY = 0;
+var TO_RADIANS = Math.PI/180; 
 
 var socket;
 var myServer = getParameterByName('s')
@@ -232,7 +233,7 @@ var frames = [] //lightweight version of frames
 var bombs = [];
 var ammoboxes = [];
 var powerups = [];
-var subtractNumbers = []
+var displayNumbers = []
 var camerax = 0;
 var lastTime = Date.now();
 var scorelist = [];
@@ -542,8 +543,10 @@ function connect() {
             Particles.spiral(data.obj.x, data.obj.y, data.obj.c, 100);
         } else if (data.type == AMMO) {
             player.ammo++;
+            makeAddNumber(1, W)
         } else if (data.type == POWERUP) {
             player.powerlevel ++;
+            makeAddNumber(1, W/2 + 98)
         } else if (data.type == DEAD) {
             scorelist = data.obj;
         }
@@ -595,10 +598,12 @@ function makeBomb() {
         vy: vy,
         r: 10 + powerlevel,
         countdown: 20,
+        rotation: 0,
         getAsObj() {
             return {x:this.x, y:this.y, r:this.r}
         },
         update() {
+            this.rotation += this.vx;
             this.countdown -= 1;
             if(this.countdown <= 0) {
                 bombs[mySID].pop()
@@ -735,14 +740,14 @@ function makeStickyBomb() {
     }
 }
 
-function drawBomb(x, y, rw, rh, color) {
+function drawBomb(x, y, rw, rh, color, rotate) {
     let f_x = Math.floor(x - camerax);
     let f_y = Math.floor(y);
-    ctx.drawImage(bomb, f_x, f_y, rw, rh);
-    // ctx.beginPath();
-    // ctx.ellipse(f_x, f_y, rw, rh, 0, 0, tau);
-    // ctx.fillStyle = color;
-    // ctx.fill()
+    ctx.save();
+    ctx.translate(f_x, f_y)
+    ctx.rotate(rotate * TO_RADIANS)
+    ctx.drawImage(bomb, -(rw/2), -(rh/2), rw, rh);
+    ctx.restore()
 }
 
 function Point(x, y) {
@@ -974,7 +979,7 @@ function draw() {
         if (bombs[i]){
             for(let j = 0; j < bombs[i].length; j++) {
                 let b = bombs[i][j]
-                if (b) drawBomb(b.x, b.y, b.r, b.r, 'black')
+                if (b) drawBomb(b.x, b.y, b.r, b.r, 'black', b.rotation)
             }
         }
     }
@@ -1026,26 +1031,47 @@ function drawHUD() {
     ctx.textAlign = "center"
     msg = 'Power: ' + player.powerlevel
     ctx.fillText(msg, W/2, 24)
-    for(let i = 0; i < subtractNumbers.length; i++) {
-        subtractNumbers[i].draw()
+    for(let i = 0; i < displayNumbers.length; i++) {
+        displayNumbers[i].draw()
     }
 }
 
 function makeSubtractNumber(number, x) {
-    subtractNumbers.push({
+    displayNumbers.push({
         number: number,
-        duration: 40,
+        duration: 80,
         rotation: 0,
         x: x,
         draw() {
             if(this.duration <= 0) {
-                subtractNumbers.pop()
+                displayNumbers.pop()
             }
             this.duration--
             ctx.font = "24px 'Press Start 2P'";
             ctx.fillStyle ='red'
             ctx.textAlign = 'end'
             let msg = '-' + this.number
+            ctx.fillText(msg, this.x, 72 - this.duration)
+        }
+    })
+
+}
+
+function makeAddNumber(number, x) {
+    displayNumbers.push({
+        number: number,
+        duration: 80,
+        rotation: 0,
+        x: x,
+        draw() {
+            if(this.duration <= 0) {
+                displayNumbers.pop()
+            }
+            this.duration--
+            ctx.font = "24px 'Press Start 2P'";
+            ctx.fillStyle ='green'
+            ctx.textAlign = 'end'
+            let msg = '+' + this.number
             ctx.fillText(msg, this.x, 72 - this.duration)
         }
     })
