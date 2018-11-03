@@ -12,6 +12,7 @@ const EXPLODE = 2;
 const DEATH = 3;
 const AMMO = 4;
 const POWERUP = 5;
+const DEAD = 6;
 
 var playing = false;
 var camerax = 0;
@@ -52,7 +53,7 @@ wss.on('connection', function connection(ws) {
                 ws.send(newPacket(SERVER_FULL, null))
                 ws.close();
                 return;
-            } 
+            }
 
             ws.id = wss.clients.size - 1;
             if (wss.clients.size);
@@ -80,6 +81,8 @@ wss.on('connection', function connection(ws) {
                             num: wss.clients.size
                         }
                         client.send(newPacket(READY, startinfo));
+                        client.timealive = Date.now();
+                        ws.living = true;
                     }
                 });
                 return
@@ -91,6 +94,13 @@ wss.on('connection', function connection(ws) {
             sendToAll(EXPLODE, data.obj)
         } else if (data.type == DEATH) {
             sendToAll(DEATH, data.obj)
+        } else if (data.type == DEAD) { //loses all lives
+            ws.timealive = Date.now() - ws.timealive;
+            console.log(ws.timealive)
+            ws.living = false;
+            if (!anyAlive()) {
+                sendToAll(DEAD, getScorelist())
+            }
         }
     });
     ws.on('close', function closing(data) {
@@ -139,6 +149,29 @@ function sendToAll(type, obj) {
             client.send(packet);
         }
     });
+}
+
+function anyAlive() {
+    wss.clients.forEach(function each(client) {
+        console.log(client.living)
+        if (client.living) {
+            return true;
+        }
+    });
+    return false;
+}
+
+function getScorelist() {
+    let scorelist = []
+    wss.clients.forEach(function each(client) {
+        scorelist.push({
+            name: client.name,
+            score: client.timealive/1000
+        })
+        scorelist.sort((a,b) => (a.score > b.score) ? -1 : ((b.score > a.score) ? 1 : 0)); 
+    });
+    return scorelist;
+
 }
 
 function newPacket(type, obj){
@@ -225,11 +258,8 @@ function tick() {
             }
             powerups.push(newp)
             powerupTimer = 200 + Math.floor(100 * Math.random())
-
         }
-
     }
-
 }
 
 function sendAmmo(id){

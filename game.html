@@ -10,6 +10,7 @@
             flex-flow: column;
             align-items: center;
             justify-content: center;
+            background-color: #444;
         }
         .center{
             flex: 1;
@@ -25,6 +26,21 @@
         }
         #gamediv{
             margin-top: 20px;
+        }
+        * {
+            font-family: 'Press Start 2P', cursive;
+        }
+        #connectdiv {
+            margin: 0 auto;
+            width: 50%;
+            height: 33%;
+            background-color: gray;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        button {
+            border-radius: 5px;
+            padding: 5px;
         }
 
     </style>
@@ -100,6 +116,9 @@
 <img hidden id="bomb_box" src="resources/bomb_box.png" alt="bombbox">
 <img hidden id="bomb_upgrade" src="resources/bomb_upgrade.png" alt="bomb_upgrade">
 <img hidden id="bomb" src="resources/bomb.png" alt="bomb">
+
+<img hidden id="back1" src="resources/back1.png" alt="back1">
+<img hidden id="back2" src="resources/back2.png" alt="back2">
 
 <script type="text/javascript" src="particles.js"></script>
 <script type="text/javascript">
@@ -196,11 +215,11 @@ const SERVER_PLAYING = -4,
  READY = -1,
  CONNECT = 0,
  TICK = 1,
- EXPLODE = 2;
- DEATH = 3;
- AMMO = 4;
- POWERUP = 5;
-
+ EXPLODE = 2,
+ DEATH = 3,
+ AMMO = 4,
+ POWERUP = 5,
+ DEAD = 6;
 
 const GRAVITY = 1;
 const FRICTION = .85;
@@ -216,13 +235,14 @@ var powerups = [];
 var subtractNumbers = []
 var camerax = 0;
 var lastTime = Date.now();
+var scorelist = [];
 
 var numPlayers;
 
 var otherplayers = [];
 
 const frameHtmlImgs = [
-frame0,
+    frame0,
     frame1,
     frame2,
     frame3,
@@ -420,9 +440,11 @@ function killplayer() {
     if (player.lives == 0) {
         player.draw = () => {};
         player.update = () => {};
+        socket.send(newPacket(DEAD, null))
+    } else {
+        player.lives--;
+        makeSubtractNumber(1, 192)
     }
-    player.lives--;
-    makeSubtractNumber(1, 192)
 }
 
 function drawPlayer(x, y, w, h, type, color, direction, frame, spawning=false) {
@@ -461,7 +483,7 @@ function connect() {
     socket.onopen = function () {
 		connectmsg.hidden = true;
 		gamediv.hidden = false;
-		document.getElementById("body").style.backgroundColor = "#888";
+		document.getElementById("body").style.backgroundColor = "#444";//"#888";
 		socket.send(newPacket(CONNECT, {name: myName, choice: myChoice}));
         buttonsdiv.hidden = false;
     }
@@ -522,6 +544,8 @@ function connect() {
             player.ammo++;
         } else if (data.type == POWERUP) {
             player.powerlevel ++;
+        } else if (data.type == DEAD) {
+            scorelist = data.obj;
         }
     }
 }
@@ -793,7 +817,7 @@ function loadFrameimgdata(frame) {
 }
 
 function update() {
-    if (player.lives <= 0) {
+    if (scorelist.length > 0) {
         returnTimer--;
         if (returnTimer <= 0) {
             returnTimer = 0;
@@ -913,11 +937,26 @@ function drawworldframe() {
     ctx.drawImage(alphacanvas, 0, 0)
 }
 
+function drawBackground() {
+    let frac = (Date.now() % 50000) / 50000;
+    frac = Math.round(100 * (2 - 6*Math.abs(frac - .5))) / 100
+    frac = Math.max(frac, 0)
+    frac = Math.min(frac, 1)
+    let compop = ctx.globalCompositeOperation;
+    ctx.globalCompositeOperation = "lighter";
+    let temp = ctx.globalAlpha;
+    ctx.globalAlpha = frac
+    ctx.drawImage(back1, 0, 0);
+    ctx.globalAlpha = 1-frac;
+    ctx.drawImage(back2, 0, 0);
+    ctx.globalAlpha = temp;
+    ctx.globalCompositeOperation = compop;
+
+}
+
 function draw() {
     clearCanvas(renderer, ctx);
-    let backgroundColor = '#337'
-    ctx.fillStyle = backgroundColor
-    ctx.fillRect(0, 0, W, H);
+    drawBackground();
 
     drawworldframe();
 
@@ -948,6 +987,7 @@ function draw() {
     drawHUD();
 }
 
+
 function drawAmmo(x, y) {
     ctx.drawImage(bomb_box, Math.floor(x-camerax), Math.floor(y));
 }
@@ -956,17 +996,27 @@ function drawPowerUp(x, y) {
     ctx.drawImage(bomb_upgrade, Math.floor(x-camerax), Math.floor(y));
 }
 
+function drawScoreList() {
+    for (let index = 0; index < scorelist.length; index++) {
+        let entry = scorelist[index];
+        msg = (index+1) + '. ' + entry.name + ': ' + entry.score + 's';
+        ctx.textAlign = 'start'
+        ctx.fillText(msg, 128, 128 + 48*index)
+    }
+}
+
 function drawHUD() {
     ctx.font = "24px 'Press Start 2P'";
     ctx.fillStyle = "yellow"
     ctx.textAlign = "start"
     let msg = 'Lives: ' + player.lives
-    if (player.lives < 0) {
-        msg = 'Dead - Press Space to Return';
+    if (scorelist.length > 0) {
+        msg = 'Press Space to Return';
         ctx.fillText(msg, 0, 24)
         ctx.textAlign = "end"
         msg = Math.round(returnTimer/100)
         ctx.fillText(msg, W, 24)
+        drawScoreList();
         return;
     }
     ctx.fillText(msg, 0, 24)
