@@ -84,7 +84,7 @@ function newSpiralPart(x, y, color, rscale) {
 		y: y,
 		r: 2 + rscale*Math.random(),
 		v: 5,
-		color: Math.random() > .5 ? "white" : color,
+		color: Math.random() > .7 ? "white" : color,
 		theta: Math.random() * tau,
 		draw: function(ctx, camerax){
 			ctx.beginPath();

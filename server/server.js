@@ -92,6 +92,8 @@ wss.on('connection', function connection(ws) {
 function resetServer() {
     playing = false;
     camerax = 0;
+    bombs = [];
+    players = [];
 }
 
 function generateFrameOrder() {

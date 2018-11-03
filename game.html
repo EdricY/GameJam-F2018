@@ -139,6 +139,14 @@ var characterImages =  {
         },
     }
 }
+
+const P_COLORS = [
+    'green',
+    'grey',
+    'orange',
+    'pink'
+]
+
 const TILES = {
     '0,0,0,0': null, //background
     '76,255,0,255': 0,
@@ -197,15 +205,15 @@ const tileHtmlImgs = [
     Stone,
 ]
 
-var player = newPlayer();
+var player;
 function newPlayer() {
     return {
         x: 0,
         y: 0,
         vx: 0,
         vy: 0,
-        w: 32,
-        h: 64,
+        w: 49,
+	    h: 32,
         ax: .6,
         jv: -18,
         mvx: 50,
@@ -217,13 +225,13 @@ function newPlayer() {
         spawning: false,
         spawnTimer: 100,
         lives: 3,
-        type: 'Dog',
-        color: 'green',
+        type: myChoice == 0 ? 'Dog': 'Cat',
+        color: P_COLORS[mySID],
         direction: 'right',
         animationFrame: 1,
         animationCount: 18,
         draw() {
-            drawPlayer(this.x, this.y, this.w, this.h, this.type, this.color, this.direction, this.animationFrame)
+            drawPlayer(this.x, this.y, this.w, this.h, this.type, this.color, this.direction, this.animationFrame, this.spawning)
         },
         update() {
             if (this.spawning) {
@@ -249,12 +257,12 @@ function newPlayer() {
             }
             this.vy += GRAVITY;
             this.animationCount -= 1;
-            if (this.vx !== 0 && this.animationCount <= 0) {
+            if (Math.abs(this.vx) > 0.3 && this.animationCount <= 0) {
                 this.animationFrame = (this.animationFrame + 1) % 4
                 this.animationCount = 18;
-            } else if(this.vx === 0 && this.animationCount <= 0) {
+            } else if(Math.abs(this.vx) <= 0.3 && this.animationCount <= 0) {
                 this.animationFrame = 1
-                this.animationCount = 20;
+                this.animationCount = 18;
             }
             if (keys[37] || keys[65]) { //left
                 this.vx -= this.ax;
@@ -346,17 +354,18 @@ function newPlayer() {
 }
 
 function killplayer() {
-    socket.send(newPacket(DEATH, {x: player.x, y: player.y}))
+    socket.send(newPacket(DEATH, {x: player.x, y: player.y, c: player.color}))
     player.spawning = true;
     if (player.lives == 0) {
         player.draw = () => {};
         player.update = () => {};
+        player.lives = "Dead"
     } else {
         player.lives--;
     }
 }
 
-function drawPlayer(x, y, w, h, color, spawning=false) {
+function drawPlayer(x, y, w, h, type, color, direction, frame, spawning=false) {
     if (!spawning || Date.now() % 5 == 0) {
         ctx.fillStyle = color;
         let f_x = Math.floor(x - camerax);
@@ -421,13 +430,13 @@ function connect() {
             mySID = data.obj.id
             worldframeorder = data.obj.f_ord
             worldW = worldframeorder.length * W;
-            player.x = data.obj.x
             numPlayers = data.obj.num
             for (let i = 0; i < numPlayers; i++) {
                 bombs.push([])
             }
             connectdiv.hidden = true;
             initGame();
+            player.x = data.obj.x
         } else if (data.type == TICK) {
             let obj = data.obj;
             camerax = obj.cx;
@@ -445,7 +454,7 @@ function connect() {
         } else if (data.type == EXPLODE) {
             explode(data.obj.x, data.obj.y, data.obj.r, data.obj.h)
         } else if (data.type == DEATH) {
-            Particles.spiral(data.obj.x, data.obj.y, 'green', 20);
+            Particles.spiral(data.obj.x, data.obj.y, data.obj.c, 100);
         }
     }
 }
@@ -483,7 +492,7 @@ function makeBomb(x, y, vx, vy) {
         vy: vy,
         rw: 10,
         rh: 10,
-        countdown: 100,
+        countdown: 20,
         getAsObj() {
             return {x:this.x, y:this.y, rh: this.rh, rw: this.rw}
         },
@@ -587,6 +596,7 @@ function initGame() {
     }
 
     setupInputs();
+    player = newPlayer();
 
     flushToCanvas()
     if (typeof loadmsg !== 'undefined') loadmsg.parentNode.removeChild(loadmsg);
@@ -640,7 +650,8 @@ function sendServerTick() {
             t: player.type,
             c: player.color,
             d: player.direction,
-            af: player.animationFrame
+            af: player.animationFrame,
+            sp: player.spawning
         },
         b: mybombs
     }));
@@ -743,7 +754,7 @@ function draw() {
     for(let i in otherplayers) {
         if (i != mySID) {
             let p = otherplayers[i]
-            if (p) drawPlayer(p.x, p.y, p.w, p.h, p.t, p.c, p.d, p.af)
+            if (p) drawPlayer(p.x, p.y, p.w, p.h, p.t, p.c, p.d, p.af, p.sp)
         }
     }
     player.draw();
