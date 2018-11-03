@@ -4,5 +4,181 @@
     <title>THE GAME TITLE!</title>
 </head>
 <body>
-    <canvas id="canvas" width="300" height="300"></canvas>
+    <div id="loadmsg">
+        Loading...
+    </div>
+    <canvas id="canvas" width="768" height="512"></canvas>
+    <canvas hidden id="renderer" width="768" height="512"></canvas>
+    <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
+    <canvas hidden id="frameloader" width="32" height="32"></canvas>
+<!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
+<img hidden id='frame1' src='baseframe1.png' alt='img'>
+<img hidden id='frame2' src='baseframe2.png' alt='img'>
+<img hidden id='frame3' src='baseframe3.png' alt='img'>
+<img hidden id='tileimg' src='tile.png' alt='img'>
+
+<script type="text/javascript">
+var canvas = document.getElementById('canvas')
+var renderer = document.getElementById('renderer')
+var frameloader = document.getElementById('frameloader')
+var alphacanvas = document.getElementById('alphacanvas')
+var vis_ctx = canvas.getContext('2d')
+var ctx = renderer.getContext('2d')
+var fl_ctx = frameloader.getContext('2d')
+var a_ctx = alphacanvas.getContext('2d')
+var keys = {};
+var lastKeys = {};
+var lastTime
+
+let W = renderer.width
+let H = renderer.height
+const TILES = {
+    '0,0,0,0': null, //background
+    '0,0,0,255': 0, //blocks
+}
+var tileimgdata = []
+var worldframeimgdatas = []
+var worldframes = []
+var frames = []
+var camerax = 0;
+
+const frameHtmlImgs = [
+    frame1,
+    frame2,
+    frame3,
+]
+const tileHtmlImgs = [
+    tileimg,
+]
+
+setTimeout(() => {
+    init();
+}, 500)
+
+function init() {
+    gameInt = setInterval(tick, 1);
+    //load frames
+    for (let img of frameHtmlImgs) {
+        clearCanvas(frameloader, fl_ctx);
+        fl_ctx.drawImage(img, 0,0);
+        frames.push(getFrameData())
+    }
+
+    for (let img of tileHtmlImgs) {
+        clearCanvas(frameloader, fl_ctx);
+        fl_ctx.drawImage(img, 0,0)
+        tileimgdata.push(getFrameData(true))
+    }
+
+    //load into worlddata
+
+    worldframes = [1,2,0]
+    for (let f of worldframes) {
+        loadFrameimgdata(frames[f])
+    }
+    clearCanvas(renderer, ctx);
+
+    flushToCanvas()
+    if (typeof loadmsg !== 'undefined') loadmsg.parentNode.removeChild(loadmsg);
+}
+
+
+function loadFrameimgdata(frame) {
+    clearCanvas(renderer, ctx);
+    //draw all tiles to canvas
+    let f = frame;
+    for (let r = 0; r < f.length; r++){
+        for (let c = 0; c < f[0].length; c++){
+            if (f[r][c] == 0) {
+                ctx.putImageData(tileimgdata[0], c*32, r*32);
+            }
+            //else {
+            //}
+        }
+    }
+    //store in frameimgdata(temp)
+    let fd = ctx.getImageData(0, 0, W, H)
+    //push to worldframeimgdatas
+    worldframeimgdatas.push(fd);
+}
+
+function update() {
+    player.update()
+    lastKeys = JSON.parse(JSON.stringify(keys)); //deep copy
+}
+
+function tick() {
+    if (Date.now() - lastTime > 10) {
+        lastTime = Date.now();
+        update();
+    }
+    draw();
+}
+
+
+function flushToCanvas() {
+    vis_ctx.drawImage(renderer, 0, 0); //flush to canvas
+    requestAnimationFrame(flushToCanvas);
+}
+
+function getFrameData(istile=false) {
+    let valid = false;
+    let w = 24
+    let h = 16
+    if (istile) {
+        w = 32;
+        h = 32;
+    }
+    data = []
+    raw_data = fl_ctx.getImageData(0, 0, w, h)
+    if (istile) return raw_data;
+    raw_data = raw_data.data
+    for (let row = 0; row < h; row++) {
+        data.push([])
+        for (let col = 0; col < w; col++) {
+            let pos = 4 * (col + row*w);
+            let colorstr = raw_data.slice(pos, pos+4).toString();
+            let tileid = TILES[colorstr]
+            if (tileid != 0) valid = true;
+            data[row].push(tileid);
+        }
+    }
+    if (!valid && !istile) console.log('thats a solid block buddy')
+    return data
+}
+
+
+function getAlpha(frameimgdata, row, col) {
+    let pos = 4 * (col + row*W) + 3;
+    return frameimgdata.data[pos];
+}
+
+
+function clearCanvas(canvasobj, canvas_ctx) {
+    canvas_ctx.clearRect(0, 0, canvasobj.width, canvasobj.height);
+}
+
+function draw() {
+    let framenum = Math.floor(camerax / W); //first frame to draw
+    clearCanvas(renderer, ctx);
+    let backgroundColor = '#337'
+    ctx.fillStyle = backgroundColor
+    ctx.fillRect(0, 0, W, H);
+    clearCanvas(alphacanvas, a_ctx)
+    a_ctx.putImageData(worldframeimgdatas[framenum],-camerax%W,0)
+    a_ctx.putImageData(worldframeimgdatas[framenum+1],-camerax%W + W, 0)
+    ctx.drawImage(alphacanvas, 0, 0)
+}
+
+onkeydown = e => {
+	let k = e.keyCode;
+	keys[k] = true;
+}
+
+onkeyup = e => {
+	let k = e.keyCode;
+	keys[k] = false;
+}
+
+</script>
