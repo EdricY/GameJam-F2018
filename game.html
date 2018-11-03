@@ -31,6 +31,7 @@ var a_ctx = alphacanvas.getContext('2d')
 var keys = {};
 var lastKeys = {};
 var lastTime
+var cameravx = 0.5;
 
 let W = renderer.width
 let H = renderer.height
@@ -208,6 +209,11 @@ function update() {
 }
 
 function tick() {
+    if(camerax + cameravx < (worldframeimgdatas.length - 1) * W) {
+        camerax += cameravx;
+    } else {
+        camerax = (worldframes.length - 1) * W
+    }
     if (Date.now() - lastTime > 10) {
         lastTime = Date.now();
         update();
@@ -280,8 +286,11 @@ function draw() {
     ctx.fillStyle = backgroundColor
     ctx.fillRect(0, 0, W, H);
     clearCanvas(alphacanvas, a_ctx)
-    a_ctx.putImageData(worldframeimgdatas[framenum],-camerax%W,0)
-    a_ctx.putImageData(worldframeimgdatas[framenum+1],-camerax%W + W, 0)
+    a_ctx.putImageData(worldframeimgdatas[framenum],Math.floor(-camerax%W),0)
+
+    if(framenum+1 < worldframeimgdatas.length) {
+        a_ctx.putImageData(worldframeimgdatas[framenum+1],Math.floor(-camerax%W + W), 0)
+    }
     ctx.drawImage(alphacanvas, 0, 0)
 
     Particles.draw(ctx)
@@ -347,6 +356,7 @@ function findXCollisionRight(x, vx, y, width, height) {
     y = Math.floor(y);
     let right = x + width;
     for (let c = right; c < right + vx; c++) {
+        if (c >= camerax + W) return new Point(c - width, y); //right edge
         for (let r = y; r < y + height; r++) {
             if (getWorldAlpha(c, r) !== 0) {
                 return new Point(c - width, r);
