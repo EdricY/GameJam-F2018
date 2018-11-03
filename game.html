@@ -204,7 +204,7 @@ var frames = [] //lightweight version of frames
 var bombs = [];
 var ammoboxes = [];
 var powerups = [];
-var subtractNumbers = []
+var displayNumbers = []
 var camerax = 0;
 var lastTime = Date.now();
 
@@ -501,8 +501,10 @@ function connect() {
             Particles.spiral(data.obj.x, data.obj.y, data.obj.c, 100);
         } else if (data.type == AMMO) {
             player.ammo++;
+            makeAddNumber(1, W)
         } else if (data.type == POWERUP) {
             player.powerlevel ++;
+            makeAddNumber(1, W/2 + 98)
         }
     }
 }
@@ -959,26 +961,47 @@ function drawHUD() {
     ctx.textAlign = "center"
     msg = 'Power: ' + player.powerlevel
     ctx.fillText(msg, W/2, 24)
-    for(let i = 0; i < subtractNumbers.length; i++) {
-        subtractNumbers[i].draw()
+    for(let i = 0; i < displayNumbers.length; i++) {
+        displayNumbers[i].draw()
     }
 }
 
 function makeSubtractNumber(number, x) {
-    subtractNumbers.push({
+    displayNumbers.push({
         number: number,
-        duration: 40,
+        duration: 80,
         rotation: 0,
         x: x,
         draw() {
             if(this.duration <= 0) {
-                subtractNumbers.pop()
+                displayNumbers.pop()
             }
             this.duration--
             ctx.font = "24px 'Press Start 2P'";
             ctx.fillStyle ='red'
             ctx.textAlign = 'end'
             let msg = '-' + this.number
+            ctx.fillText(msg, this.x, 72 - this.duration)
+        }
+    })
+
+}
+
+function makeAddNumber(number, x) {
+    displayNumbers.push({
+        number: number,
+        duration: 80,
+        rotation: 0,
+        x: x,
+        draw() {
+            if(this.duration <= 0) {
+                displayNumbers.pop()
+            }
+            this.duration--
+            ctx.font = "24px 'Press Start 2P'";
+            ctx.fillStyle ='green'
+            ctx.textAlign = 'end'
+            let msg = '+' + this.number
             ctx.fillText(msg, this.x, 72 - this.duration)
         }
     })
