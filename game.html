@@ -198,6 +198,7 @@ var frames = [] //lightweight version of frames
 var bombs = [];
 var ammoboxes = [];
 var powerups = [];
+var subtractNumbers = []
 var camerax = 0;
 var lastTime = Date.now();
 
@@ -309,10 +310,12 @@ function newPlayer() {
             if (keys[0] && !lastKeys[0] && this.ammo > 0) {
                 this.ammo --;
                 bombs[mySID].push(makeBomb())
+                makeSubtractNumber(1, W)
             }
-            if (keys[2] && !lastKeys[2] && this.ammo > 0) {
+            if (keys[2] && !lastKeys[2] && this.ammo > 1) {
                 this.ammo -= 2;
                 bombs[mySID].push(makeStickyBomb())
+                makeSubtractNumber(2, W)
             }
             if (!player.midair && ((keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) ) { //up
                 this.vy = Math.min(-18 + this.ammo, -5);
@@ -392,7 +395,7 @@ function killplayer() {
         player.update = () => {};
     }
     player.lives--;
-    
+    makeSubtractNumber(1, 192)
 }
 
 function drawPlayer(x, y, w, h, type, color, direction, frame, spawning=false) {
@@ -527,13 +530,17 @@ function makeBomb() {
     let dc = Math.sqrt(dx ** 2 + dy ** 2)
     let vx = dx / dc * 20
     let vy = dy / dc * 20
-
+    let powerlevel = player.powerlevel
+    if(player.powerlevel > 0) {
+        makeSubtractNumber(player.powerlevel, W/2 + 98)
+        player.powerlevel = 0
+    }
     return {
         x: x,
         y: y,
         vx: vx,
         vy: vy,
-        r: 10 + player.powerlevel,
+        r: 10 + powerlevel,
         countdown: 20,
         getAsObj() {
             return {x:this.x, y:this.y, r:this.r}
@@ -548,7 +555,7 @@ function makeBomb() {
                     r: this.r * 5,
                     h: true
                 }))
-                player.powerlevel = 0
+
             }
             this.vy += GRAVITY;
             if (this.vy >= 0) { //moving down
@@ -599,13 +606,18 @@ function makeStickyBomb() {
     let dc = Math.sqrt(dx ** 2 + dy ** 2)
     let vx = dx / dc * 20
     let vy = dy / dc * 20
+    let powerlevel = player.powerlevel
+    if(player.powerlevel > 0) {
+        makeSubtractNumber(player.powerlevel, W/2 + 98)
+        player.powerlevel = 0
+    }
 
     return {
         x: x,
         y: y,
         vx: vx,
         vy: vy,
-        r: 10 + player.powerlevel,
+        r: 10 + powerlevel,
         countdown: 20,
         getAsObj() {
             return {x:this.x, y:this.y, r:this.r}
@@ -620,7 +632,6 @@ function makeStickyBomb() {
                     r: this.r * 5,
                     h: true
                 }))
-                player.powerlevel = 0
             }
             if(this.vy != 0) {
                 this.vy += GRAVITY;
@@ -921,6 +932,30 @@ function drawHUD() {
     ctx.textAlign = "center"
     msg = 'Power: ' + player.powerlevel
     ctx.fillText(msg, W/2, 24)
+    for(let i = 0; i < subtractNumbers.length; i++) {
+        subtractNumbers[i].draw()
+    }
+}
+
+function makeSubtractNumber(number, x) {
+    subtractNumbers.push({
+        number: number,
+        duration: 40,
+        rotation: 0,
+        x: x,
+        draw() {
+            if(this.duration <= 0) {
+                subtractNumbers.pop()
+            }
+            this.duration--
+            ctx.font = "24px 'Press Start 2P'";
+            ctx.fillStyle ='red'
+            ctx.textAlign = 'end'
+            let msg = '-' + this.number
+            ctx.fillText(msg, this.x, 72 - this.duration)
+        }
+    })
+
 }
 
 function explode(ox, oy, range, hitplayers=true) {
