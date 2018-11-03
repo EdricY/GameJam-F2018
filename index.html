@@ -1,23 +1,123 @@
 <!DOCTYPE html>
 <html>
-<meta charset="UTF-8">
-    <title>GameJam!</title>
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
+    <title>Flying Cats and Dogs</title>
+    <style>
+        html {
+            background-color: 	#e1d200;
+        }
+        * {
+            font-family: 'Press Start 2P', cursive;
+            color: white;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 5px;
+            border-radius: 7px; 
+        }
+        header {
+            top: 0;
+            font-size: 48pt;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            background-color:#dc0073;
+            background-color: red;
+        }
+        header p {
+            font-size: 12pt;
+        }
+
+        header * {
+            background-color:red;
+        }
+        div *{
+            color: black;
+        }
+        .inBox {
+            text-align: left;
+            padding: 10px;
+            background-color:#89fc00;
+        }
+        #rules_box {
+            margin-top: 30px;
+            width: 75%;
+            border: 7px solid #437a00;
+            border-left: 60px solid #437a00;
+            background-color: 	#89fc00;
+        }
+        #rules_box * {
+            background-color:
+        }
+        li {
+            margin-left: 15px;
+        }
+        #box {
+            width: 75%;
+            border: 7px solid #084263;
+            border-left: 60px solid #084263;
+            background-color: #16a9ff;
+            background-color: #00a1e4;
+            margin-top: 30px;
+            /* min-width: 700px; */
+        }
+        #box div {
+            background-color: #00a1e4;
+        }
+        select {
+            padding: 5px; 
+        }
+        input {Choose your Animal: ￼
+￼Join!
+
+            padding: 5px;
+        }
+        button {
+            text-align: cMB
+            padding: 5px;MB
+        }
+    </style>
 </head>
 <body>
-    <div>
-        IP Address <input required id="ipaddress" name="ipaddress" type="text" value="localhost">
+    <header>
+        FLYING CATS AND DOGS
+        <p>
+            Check out the source code on Github:<a target="_blank" href="https://www.github.com/edricy/GameJam-F2018">[link]</a>
+        </p>
+    </header>
+    <div id="box">
+    <div class="inBox">
+        IP Address: <input required id="ipaddress" name="ipaddress" type="text" value="10.121.218.3" placeholder="">
     </div>
-    <div>
-        Name <input required id="namebox" name="name" type="text" value="Edric" maxlength="16">
+    <div class="inBox">
+        Name: <input required id="namebox" name="name" type="text" placeholder="Your Name Here" value="" maxlength="16">
     </div>
-    Choose your Animal <select name="animal" id="animal">
-        <option value="0">Dog</option>
-        <option value="1">Cat</option>
-    </select>
-    <div>
+    <div class="inBox">
+        Choose your Animal: 
+        <select name="animal" id="animal">
+            <option value="0">Dog</option>
+            <option value="1">Cat</option>
+        </select>
+    </div>
+    <div class="inBox">
         <button onclick="joinGame()">Join!</button>
     </div>
-    <div id="msg"></div>
+    <div id="msg" class="inBox"></div>
+    </div> 
+    <div id="rules_box">
+        <h3>RULES:</h3>
+        <ul>
+            <li>Use 'w' 'a' 's' 'd' to move around the arena</li>
+            <li>You have three lives, <span style="text-decoration: underline">use them wisely</span></li>
+            <li>Aim with the mouse and left-click to send your opponents flying</li>
+            <li>Use a right-click to throw a sticky bomb</li>
+            <li>Pick up ammo boxes around the map to resupply</li>
+            <li>Pick up powerup boxes to increase the damage of your weapons</li>
+            <li>Knock your opponents out of frame to win!</li>
+
+        </ul>
+    </div> 
 </body>
 <script>
     var ipaddress = document.getElementById('ipaddress');

@@ -84,6 +84,8 @@
 <img hidden id="Grass" src="Tiles/Grass.png" alt="tileimg">
 <img hidden id="Dirt" src="Tiles/Dirt.png" alt="tileimg">
 <img hidden id="Brick" src="Tiles/Brick.png" alt="tileimg">
+<img hidden id="Up" src="Tiles/up.png" alt="tileimg">
+<img hidden id="Down" src="Tiles/down.png" alt="tileimg">
 
 <img hidden id="bomb_box" src="resources/bomb_box.png" alt="bombbox">
 <img hidden id="bomb_upgrade" src="resources/bomb_upgrade.png" alt="bomb_upgrade">
@@ -113,6 +115,7 @@ var myChoice = getParameterByName('c')
 var mySID;
 
 var playing = false;
+var returnTimer = 10000;
 
 var W = renderer.width
 var H = renderer.height
@@ -173,6 +176,8 @@ const TILES = {
     '255,216,0,255': 5,
     '255,0,110,255': 6,
     '0,0,0,255': 7,
+    '178,0,255,255': 8,
+    '255,0,220,255': 9
 }
 
 //packet types
@@ -238,6 +243,8 @@ const tileHtmlImgs = [
     Sand,
     Wood,
     Stone,
+    Up,
+    Down
 ]
 
 var player;
@@ -448,7 +455,7 @@ function connect() {
         players_ul.style.display = 'none';
         gamediv.style.display = 'none';
         document.getElementById("body").style.backgroundColor = "#FFF";
-		connectmsg.innerText = "Connection Closed. You can try reloading, but the server is probably down.";
+		// connectmsg.innerText = "Connection Closed. You can try reloading, but the server is probably down.";
         buttonsdiv.hidden = true;
         playing = false;
         if (gameInt) clearInterval(gameInt);
@@ -458,7 +465,9 @@ function connect() {
         if (data.type == PLAYERLIST) { //used before game starts
             replacePlayerList(data.obj.playerlist);
         } else if (data.type == SERVER_PLAYING) {
-            connectmsg.innerText = 'Server is Full!'
+            connectmsg.innerText = 'Server has an ongoing game ongoing, try again later!'
+        } else if (data.type == SERVER_FULL) {
+            connectmsg.innerText = 'The server is full!'
         } else if (data.type == READY) {
             playing = true;
             mySID = data.obj.id
@@ -702,7 +711,7 @@ function Point(x, y) {
 
 setTimeout(() => {
     connect();
-}, 500)
+}, 1000)
 
 function initGame() {
     loadImages()
@@ -767,7 +776,14 @@ function loadFrameimgdata(frame) {
 }
 
 function update() {
-    player.update()
+    if (player.lives <= 0) {
+        returnTimer--;
+        if (returnTimer <= 0) {
+            returnTimer = 0;
+            window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
+        }
+    } 
+    if (player.update) player.update()
     if (bombs[mySID]) {
         for (let i = 0; i < bombs[mySID].length; i++) {
             bombs[mySID][i].update();
@@ -878,7 +894,6 @@ function drawworldframe() {
     a_ctx.putImageData(worldframeimgdatas[framenum1],Math.floor(-camerax%W),0)
     a_ctx.putImageData(worldframeimgdatas[framenum2],Math.floor(-camerax%W + W), 0)
     ctx.drawImage(alphacanvas, 0, 0)
-
 }
 
 function draw() {
@@ -900,9 +915,11 @@ function draw() {
     }
     player.draw();
     for(let i = 0; i < bombs.length; i++) {
-        for(let j = 0; j < bombs[i].length; j++) {
-            let b = bombs[i][j]
-            if (b) drawBomb(b.x, b.y, b.r, b.r, 'black', b.rotation)
+        if (bombs[i]){
+            for(let j = 0; j < bombs[i].length; j++) {
+                let b = bombs[i][j]
+                if (b) drawBomb(b.x, b.y, b.r, b.r, 'black', b.rotation)
+            }
         }
     }
     for (let a of ammoboxes) {
@@ -915,11 +932,11 @@ function draw() {
 }
 
 function drawAmmo(x, y) {
-    ctx.drawImage(bomb_box, x-camerax, y);
+    ctx.drawImage(bomb_box, Math.floor(x-camerax), Math.floor(y));
 }
 
 function drawPowerUp(x, y) {
-    ctx.drawImage(bomb_upgrade, x-camerax, y);
+    ctx.drawImage(bomb_upgrade, Math.floor(x-camerax), Math.floor(y));
 }
 
 function drawHUD() {
@@ -927,7 +944,14 @@ function drawHUD() {
     ctx.fillStyle = "yellow"
     ctx.textAlign = "start"
     let msg = 'Lives: ' + player.lives
-    if (player.lives < 0) msg = 'Dead'
+    if (player.lives < 0) {
+        msg = 'Dead - Press Space to Return';
+        ctx.fillText(msg, 0, 24)
+        ctx.textAlign = "end"
+        msg = Math.round(returnTimer/100)
+        ctx.fillText(msg, W, 24)
+        return;
+    }
     ctx.fillText(msg, 0, 24)
     ctx.textAlign = "end"
     msg = 'Ammo: ' + player.ammo
@@ -964,7 +988,7 @@ function makeSubtractNumber(number, x) {
 function explode(ox, oy, range, hitplayers=true) {
     ox = Math.floor(ox);
     oy = Math.floor(oy);
-    Particles.explode(ox, oy, 'orange', range/10)
+    Particles.explode(ox, oy, 'orange', 50, range/6)
     if (hitplayers) throwPlayer(ox, oy, range);    
     for (let y = oy - range; y < oy + range; y++) {
         for (let x = ox - range; x < ox + range; x++) {
@@ -1067,6 +1091,12 @@ function setupInputs() {
     onkeydown = e => {
         let k = e.keyCode;
         keys[k] = true;
+
+        if (player.lives <= 0) {
+            if (keys[32] && !lastKeys[32]) {
+                window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
+            }
+        }
     }
     
     onkeyup = e => {
