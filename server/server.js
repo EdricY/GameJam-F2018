@@ -112,7 +112,7 @@ function resetServer() {
 }
 
 function generateFrameOrder() {
-    let frameChoices = 6;
+    let frameChoices = 17;
     let order = []
     order.push(1)
     for (let i = 0; i < 2; i++) {
