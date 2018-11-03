@@ -9,7 +9,7 @@
     </div>
     <canvas id="canvas" width="768" height="512"></canvas>
     <canvas hidden id="renderer" width="768" height="512"></canvas>
-    <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
+    <canvas id="alphacanvas" width="768" height="512"></canvas>
     <canvas hidden id="frameloader" width="32" height="32"></canvas>
 <!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
@@ -18,6 +18,7 @@
 <img hidden id='frame3' src='baseframe3.png' alt='img'>
 <img hidden id='tileimg' src='tile.png' alt='img'>
 
+<script type="text/javascript" src="particles.js"></script>
 <script type="text/javascript">
 var canvas = document.getElementById('canvas')
 var renderer = document.getElementById('renderer')
@@ -114,6 +115,7 @@ function tick() {
         update();
     }
     draw();
+    Particles.update();
 }
 
 
@@ -148,6 +150,20 @@ function getFrameData(istile=false) {
     return data
 }
 
+function setWorldAlpha(x, y, val) {
+    let framenum = Math.floor(x / W);
+    x = x % W
+    let myframe = worldframeimgdatas[framenum];
+    let pos = 4 * (x + y*W) + 3;
+    myframe.data[pos] = val;
+}
+
+function getWorldAlpha(x, y) {
+    let framenum = Math.floor(x / W);
+    x = x % W
+    let myframe = worldframeimgdatas[framenum];
+    getAlpha(myframe, y, x);
+}
 
 function getAlpha(frameimgdata, row, col) {
     let pos = 4 * (col + row*W) + 3;
@@ -169,6 +185,21 @@ function draw() {
     a_ctx.putImageData(worldframeimgdatas[framenum],-camerax%W,0)
     a_ctx.putImageData(worldframeimgdatas[framenum+1],-camerax%W + W, 0)
     ctx.drawImage(alphacanvas, 0, 0)
+
+    Particles.draw(ctx)
+}
+
+function explode(ox, oy, range) {
+    Particles.explode(ox, oy, 'red', 100)
+    for (let y = oy - range; y < oy + range; y++) {
+        for (let x = ox - range; x < ox + range; x++) {
+            let ydist = y-oy;
+            let xdist = x-ox;
+            if (ydist*ydist + xdist*xdist <= range*range) {
+                setWorldAlpha(x, y, 0)
+            }
+        }
+    }
 }
 
 onkeydown = e => {
