@@ -16,6 +16,7 @@ const POWERUP = 5;
 var playing = false;
 var camerax = 0;
 var cameravx = .5;
+var difficulty = 0;
 
 var ammoTimer = 100;
 var powerupTimer = 100;
@@ -113,7 +114,7 @@ function generateFrameOrder() {
     let numFrames = 6;
     let order = []
     order.push(1)
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 12; i++) {
         order.push(Math.floor(Math.random() * numFrames))
     }
     return order;
@@ -160,7 +161,9 @@ function Packet(type, obj) {
 
 function tick() {
     if (playing) {
+        difficulty += .001
         camerax += cameravx;
+        cameravx = 1+difficulty;
         sendToAll(TICK, {
             cx: camerax,
             p: players,
@@ -177,7 +180,7 @@ function tick() {
             }
             for (let j in players) {
                 let p = players[j]
-                if (rectRectCollision(p.x, p.y, PW, PH, ammo.x, ammo.y, AW, AH)) {
+                if (p && rectRectCollision(p.x, p.y, PW, PH, ammo.x, ammo.y, AW, AH)) {
                     sendAmmo(j);
                     ammos.splice(i--, 1);
                     continue
@@ -193,7 +196,7 @@ function tick() {
             }
             for (let j in players) {
                 let p = players[j]
-                if (rectRectCollision(p.x, p.y, PW, PH, pow.x, pow.y, AW, AH)) {
+                if (p && rectRectCollision(p.x, p.y, PW, PH, pow.x, pow.y, AW, AH)) {
                     sendPowerup(j);
                     powerups.splice(i--, 1);
                     continue

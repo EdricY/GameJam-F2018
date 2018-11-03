@@ -86,7 +86,6 @@ var a_ctx = alphacanvas.getContext('2d')
 var keys = {};
 var lastKeys = {};
 var lastTime
-var cameravx = 0.5;
 var mouseX = 0;
 var mouseY = 0;
 
@@ -226,8 +225,9 @@ function newPlayer() {
         midair: true,
         spawning: false,
         spawnTimer: 100,
+        powerlevel: 0,
         lives: 3,
-        ammo: 10,
+        ammo: 5,
         type: myChoice == 0 ? 'Dog': 'Cat',
         color: P_COLORS[mySID],
         direction: 'right',
@@ -453,7 +453,7 @@ function connect() {
         } else if (data.type == AMMO) {
             player.ammo++;
         } else if (data.type == POWERUP) {
-            player.ammo+=2;
+            player.powerlevel ++;
         }
     }
 }
@@ -497,11 +497,10 @@ function makeBomb() {
         y: y,
         vx: vx,
         vy: vy,
-        rw: 10,
-        rh: 10,
+        r: 10 + player.powerlevel,
         countdown: 20,
         getAsObj() {
-            return {x:this.x, y:this.y, rh: this.rh, rw: this.rw}
+            return {x:this.x, y:this.y, r:this.r}
         },
         update() {
             this.countdown -= 1;
@@ -510,13 +509,14 @@ function makeBomb() {
                 socket.send(newPacket(EXPLODE, { 
                     x: this.x,
                     y: this.y,
-                    r: 50,
+                    r: this.r * 5,
                     h: true
                 }))
+                player.powerlevel = 0
             }
             this.vy += GRAVITY;
             if (this.vy >= 0) { //moving down
-                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.rw, this.rh);
+                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.r, this.r);
                 if (y_cls == null) { 
                     this.y += this.vy;
                 } else { //landed on something
@@ -524,7 +524,7 @@ function makeBomb() {
                     this.y = y_cls.y;
                 }
             } else { //moving up
-                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.rw, this.rh);
+                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.r, this.r);
                 if (y_cls == null) {
                     this.y += this.vy;
                 } else { //hit your head
@@ -533,14 +533,14 @@ function makeBomb() {
                 }
             }
             if (this.vx > 0) { //moving right
-                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.rw, this.rh);
+                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.r, this.r);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
                     this.vx = this.vx * -0.5;
                     this.x = x_cls.x;
                 }
             } else if(this.vx < 0) { //moving left
-                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.rw, this.rh);
+                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.r, this.r);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
                     this.vx = this.vx * -0.5;
@@ -766,7 +766,7 @@ function draw() {
     for(let i = 0; i < bombs.length; i++) {
         for(let j = 0; j < bombs[i].length; j++) {
             let b = bombs[i][j]
-            if (b) drawBomb(b.x, b.y, b.rw, b.rh, 'black')
+            if (b) drawBomb(b.x, b.y, b.r, b.r, 'black')
         }
     }
     for (let a of ammoboxes) {
@@ -796,6 +796,9 @@ function drawHUD() {
     ctx.textAlign = "end"
     msg = 'Ammo: ' + player.ammo
     ctx.fillText(msg, W, 24)
+    ctx.textAlign = "center"
+    msg = 'Power: ' + player.powerlevel
+    ctx.fillText(msg, W/2, 24)
 }
 
 function explode(ox, oy, range, hitplayers=true) {
