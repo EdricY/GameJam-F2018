@@ -13,9 +13,24 @@
     <canvas hidden id="frameloader" width="32" height="32"></canvas>
 <!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
-<img hidden id='frame1' src='baseframe1.png' alt='img'>
-<img hidden id='frame2' src='baseframe2.png' alt='img'>
-<img hidden id='frame3' src='baseframe3.png' alt='img'>
+
+<img hidden id='frame0' src='Frames/frame_0.png' alt='img'>
+<img hidden id='frame1' src='Frames/frame_1.png' alt='img'>
+<img hidden id='frame2' src='Frames/frame_2.png' alt='img'>
+<img hidden id='frame3' src='Frames/frame_3.png' alt='img'>
+<img hidden id='frame4' src='Frames/frame_4.png' alt='img'>
+<img hidden id='frame5' src='Frames/frame_5.png' alt='img'>
+
+<img hidden id="Wood" src="Tiles/Wood.png" alt="tileimg">
+<img hidden id="Water" src="Tiles/Water.png" alt="tileimg">
+<img hidden id="Stone" src="Tiles/Stone.png" alt="tileimg">
+<img hidden id="Sand" src="Tiles/Sand.png" alt="tileimg">
+<img hidden id="Metal" src="Tiles/Metal.png" alt="tileimg">
+<img hidden id="Grass" src="Tiles/Grass.png" alt="tileimg">
+<img hidden id="Dirt" src="Tiles/Dirt.png" alt="tileimg">
+<img hidden id="Brick" src="Tiles/Brick.png" alt="tileimg">
+
+
 <img hidden id='tileimg' src='tile.png' alt='img'>
 
 <script type="text/javascript" src="particles.js"></script>
@@ -37,7 +52,14 @@ let W = renderer.width
 let H = renderer.height
 const TILES = {
     '0,0,0,0': null, //background
-    '0,0,0,255': 0, //blocks
+    '76,255,0,255': 0,
+    '127,106,0,255': 1,
+    '127,0,0,255': 2,
+    '0,38,255,255': 3,
+    '128,128,128,255': 4,
+    '255,216,0,255': 5,
+    '255,0,110,255': 6,
+    '0,0,0,255': 7,
 }
 const GRAVITY = 1;
 const FRICTION = .85;
@@ -49,12 +71,22 @@ var camerax = 0;
 var lastTime = Date.now();
 
 const frameHtmlImgs = [
+    frame0,
     frame1,
     frame2,
     frame3,
+    frame4,
+    frame5,
 ]
 const tileHtmlImgs = [
-    tileimg,
+    Grass,
+    Dirt,
+    Brick,
+    Water,
+    Metal,
+    Sand,
+    Wood,
+    Stone,
 ]
 
 var player = {
@@ -173,7 +205,7 @@ function init() {
 
     //load into worlddata
 
-    worldframes = [0,2,0]
+    worldframes = [0,1,2,3,4,5]
     for (let f of worldframes) {
         loadFrameimgdata(frames[f])
     }
@@ -190,8 +222,9 @@ function loadFrameimgdata(frame) {
     let f = frame;
     for (let r = 0; r < f.length; r++){
         for (let c = 0; c < f[0].length; c++){
-            if (f[r][c] == 0) {
-                ctx.putImageData(tileimgdata[0], c*32, r*32);
+            let tileid = f[r][c]
+            if (tileid != null) {
+                ctx.putImageData(tileimgdata[tileid], c*32, r*32);
             }
             //else {
             //}
@@ -245,6 +278,7 @@ function getFrameData(istile=false) {
         for (let col = 0; col < w; col++) {
             let pos = 4 * (col + row*w);
             let colorstr = raw_data.slice(pos, pos+4).toString();
+            console.log(colorstr)
             let tileid = TILES[colorstr]
             if (tileid != 0) valid = true;
             data[row].push(tileid);
@@ -293,12 +327,12 @@ function draw() {
     }
     ctx.drawImage(alphacanvas, 0, 0)
 
-    Particles.draw(ctx)
+    Particles.draw(ctx, camerax)
     player.draw();
 }
 
 function explode(ox, oy, range) {
-    Particles.explode(ox, oy, 'red', 100)
+    Particles.explode(ox, oy, 'red', range/10)
     for (let y = oy - range; y < oy + range; y++) {
         for (let x = ox - range; x < ox + range; x++) {
             let ydist = y-oy;

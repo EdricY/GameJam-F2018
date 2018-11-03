@@ -16,9 +16,9 @@ Particles = {
 		}
 	},
 
-	draw: function(ctx){
+	draw: function(ctx, camerax){
 		for (let p of this.parts) {
-			if (p.draw) p.draw(ctx);
+			if (p.draw) p.draw(ctx, camerax);
 		}
 	},
 	addPart: function(x, y, color){
@@ -49,12 +49,12 @@ function newPart(x, y, color, rscale) {
 		v: .2,
 		color: color,
 		theta: Math.random() * tau,
-		draw: function(ctx){
+		draw: function(ctx, camerax){
 			ctx.beginPath();
             let oldW = ctx.lineWidth;
 			ctx.lineWidth = 1;
 			ctx.fillStyle = this.color;
-			ctx.arc(this.x, this.y, this.r, 0, tau);
+			ctx.arc(this.x - camerax, this.y, this.r, 0, tau);
 			ctx.fill();
             ctx.strokeStyle = "black";
 			ctx.stroke();
@@ -86,12 +86,12 @@ function newSpiralPart(x, y, color) {
 		v: 5,
 		color: Math.random() > .5 ? "white" : color,
 		theta: Math.random() * tau,
-		draw: function(ctx){
+		draw: function(ctx, camerax){
 			ctx.beginPath();
 			let oldW = ctx.lineWidth;
 			ctx.lineWidth = 1;
 			ctx.fillStyle = this.color;
-			ctx.arc(this.x, this.y, this.r, 0, tau);
+			ctx.arc(this.x - camerax, this.y, this.r, 0, tau);
 			ctx.fill();
 			ctx.strokeStyle = "black";
 			ctx.stroke();
