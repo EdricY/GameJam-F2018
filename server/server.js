@@ -112,12 +112,15 @@ function resetServer() {
 }
 
 function generateFrameOrder() {
-    let frameChoices = 17;
+    let frameChoices = 24;
     let order = []
     order.push(1)
-    for (let i = 0; i < 2; i++) {
-        order.push(Math.floor(Math.random() * frameChoices))
+    for (let i = 0; i < 24; i++) {
+        order.push(i)
     }
+    // for (let i = 0; i < 2; i++) {
+    //     order.push(Math.floor(Math.random() * frameChoices))
+    // }
     return order;
 }
 
