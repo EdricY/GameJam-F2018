@@ -6,3 +6,4 @@
 - Noah Lindsey (Level Designer)
 - Joshua Rauh (Composer)
 - Ryan Jones (Asset Manager)
+- Chris Arpin (Graphics Artist)
