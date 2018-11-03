@@ -222,7 +222,7 @@ const SERVER_PLAYING = -4,
  POWERUP = 5,
  DEAD = 6;
 
-const GRAVITY = 1;
+const GRAVITY = .85; //1
 const FRICTION = .85;
 const BOMB_FRICTION = .97;
 var tileimgdata = []
@@ -507,7 +507,7 @@ function connect() {
         if (data.type == PLAYERLIST) { //used before game starts
             replacePlayerList(data.obj.playerlist);
         } else if (data.type == SERVER_PLAYING) {
-            connectmsg.innerText = 'Server has an ongoing game ongoing, try again later!'
+            connectmsg.innerText = 'Server has an ongoing game, try again later!'
         } else if (data.type == SERVER_FULL) {
             connectmsg.innerText = 'The server is full!'
         } else if (data.type == READY) {
@@ -990,6 +990,7 @@ function draw() {
         drawPowerUp(pow.x, pow.y);
     }
     drawHUD();
+    drawNames();
 }
 
 
@@ -1006,8 +1007,26 @@ function drawScoreList() {
         let entry = scorelist[index];
         msg = (index+1) + '. ' + entry.name + ': ' + entry.score + 's';
         ctx.textAlign = 'start'
-        ctx.fillText(msg, 128, 128 + 48*index)
+        ctx.fillText(msg, 96, 128 + 48*index)
     }
+}
+
+function drawNames() {
+    ctx.font = "12px 'Press Start 2P'";
+    ctx.strokeStyle = "black";
+    ctx.fillStyle = "white";
+    ctx.textAlign = 'center'
+    ctx.fillText(myName, player.x + player.w/2 - camerax, player.y - 4);
+    ctx.strokeText(myName, player.x + player.w/2 - camerax, player.y - 4);
+
+    for (let listi in otherplayers) {
+        if (listi != mySID){
+            let op = otherplayers[listi]
+            ctx.fillText(op.n, op.x + op.w/2 - camerax, op.y - 4);
+            ctx.strokeText(op.n, op.x + op.w/2 - camerax, op.y - 4);
+        }
+    }
+
 }
 
 function drawHUD() {

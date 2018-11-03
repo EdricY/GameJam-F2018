@@ -82,13 +82,14 @@ wss.on('connection', function connection(ws) {
                         }
                         client.send(newPacket(READY, startinfo));
                         client.timealive = Date.now();
-                        ws.living = true;
+                        client.living = true;
                     }
                 });
                 return
             }
         } else if (data.type == TICK) {
             players[ws.id] = data.obj.p;
+            players[ws.id].n = ws.name;
             bombs[ws.id] = data.obj.b;
         } else if (data.type == EXPLODE) {
             sendToAll(EXPLODE, data.obj)
@@ -96,9 +97,8 @@ wss.on('connection', function connection(ws) {
             sendToAll(DEATH, data.obj)
         } else if (data.type == DEAD) { //loses all lives
             ws.timealive = Date.now() - ws.timealive;
-            console.log(ws.timealive)
             ws.living = false;
-            if (!anyAlive()) {
+            if (allDead()) {
                 sendToAll(DEAD, getScorelist())
             }
         }
@@ -125,19 +125,19 @@ function generateFrameOrder() {
     let frameChoices = 24;
     let order = []
     order.push(1)
-    for (let i = 0; i < 24; i++) {
-        order.push(i)
-    }
-    // for (let i = 0; i < 2; i++) {
-    //     order.push(Math.floor(Math.random() * frameChoices))
+    // for (let i = 0; i < 24; i++) {
+    //     order.push(i)
     // }
+    for (let i = 0; i < 2; i++) {
+        order.push(Math.floor(Math.random() * frameChoices))
+    }
     return order;
 }
 
 function broadcastPlayerReadyList() {
     let playerlist = []
     wss.clients.forEach(function each(client) {
-      playerlist.push({name:client.name, ready:client.ready})
+      playerlist.push({name:client.name, ready:client.ready, id:client.id})
     });
     sendToAll(PLAYERLIST, {playerlist: playerlist})
 }
@@ -151,14 +151,14 @@ function sendToAll(type, obj) {
     });
 }
 
-function anyAlive() {
+function allDead() {
+    let res = true;
     wss.clients.forEach(function each(client) {
-        console.log(client.living)
         if (client.living) {
-            return true;
+            res = false;
         }
     });
-    return false;
+    return res;
 }
 
 function getScorelist() {
@@ -166,7 +166,7 @@ function getScorelist() {
     wss.clients.forEach(function each(client) {
         scorelist.push({
             name: client.name,
-            score: client.timealive/1000
+            score: Math.floor(client.timealive/100) / 10
         })
         scorelist.sort((a,b) => (a.score > b.score) ? -1 : ((b.score > a.score) ? 1 : 0)); 
     });
@@ -206,7 +206,7 @@ function tick() {
             p: players,
             b: bombs,
             a: ammos,
-            pows: powerups
+            pows: powerups,
         })
 
         for (let i in ammos) {
