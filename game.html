@@ -34,7 +34,7 @@
             margin: 0 auto;
             width: 50%;
             height: 33%;
-            background-color: gray;
+            background-color: lightgrey;
             border-radius: 10px;
             padding: 10px;
         }
@@ -571,7 +571,8 @@ function replacePlayerList(playerlist){
         let node = document.createTextNode(p.name + readyText);
         let lsit = document.createElement("li");
         lsit.appendChild(node);
-        lsit.style.color = p.ready ? "green" : "red"
+        console.log(p)
+        lsit.style.color = P_COLORS[p.id]
         lsit.style.padding = '10px';
         players_ul.appendChild(lsit);
     }
@@ -947,16 +948,13 @@ function drawBackground() {
     frac = Math.round(100 * (2 - 6*Math.abs(frac - .5))) / 100
     frac = Math.max(frac, 0)
     frac = Math.min(frac, 1)
-    let compop = ctx.globalCompositeOperation;
+    ctx.save()
     ctx.globalCompositeOperation = "lighter";
-    let temp = ctx.globalAlpha;
     ctx.globalAlpha = frac
     ctx.drawImage(back1, 0, 0);
     ctx.globalAlpha = 1-frac;
     ctx.drawImage(back2, 0, 0);
-    ctx.globalAlpha = temp;
-    ctx.globalCompositeOperation = compop;
-
+    ctx.restore();
 }
 
 function draw() {

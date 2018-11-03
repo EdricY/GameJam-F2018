@@ -107,6 +107,11 @@ wss.on('connection', function connection(ws) {
         console.log('Disconnect: ' + ws.name);
         players[ws.id] = null;
         bombs[ws.id] = null;
+        count = 0;
+        wss.clients.forEach(client => {
+            client.id = count;
+            count++;
+        });
         if (wss.clients.size <= 0) {
             resetServer()
         }
@@ -137,7 +142,7 @@ function generateFrameOrder() {
 function broadcastPlayerReadyList() {
     let playerlist = []
     wss.clients.forEach(function each(client) {
-      playerlist.push({name:client.name, ready:client.ready})
+      playerlist.push({name:client.name, ready:client.ready, id: client.id})
     });
     sendToAll(PLAYERLIST, {playerlist: playerlist})
 }
