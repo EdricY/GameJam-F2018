@@ -8,11 +8,11 @@ const PLAYERLIST = -2;
 const READY = -1;
 const CONNECT = 0;
 const TICK = 1;
-const BOMB = 2;
+const EXPLODE = 2;
 
 var playing = false;
 var camerax = 0;
-var cameravx = 2;
+var cameravx = 0;
 
 var f_ord = [];
 var players = [];
@@ -70,6 +70,8 @@ wss.on('connection', function connection(ws) {
             }
         } else if (data.type == TICK) {
             players[ws.id] = data.obj;
+        } else if (data.type == EXPLODE) {
+            sendToAll(EXPLODE, data.obj)
         }
     });
     ws.on('close', function closing(data) {
