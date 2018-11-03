@@ -100,6 +100,44 @@ var playing = false;
 var W = renderer.width
 var H = renderer.height
 var worldW;
+var characterImages =  {
+    'Cat': {
+        'green': {
+            'right': [],
+            'left': []
+        },
+        'grey': {
+            'right': [],
+            'left': []
+        },
+        'orange': {
+            'right': [],
+            'left': []
+        },
+        'pink': {
+            'right': [],
+            'left': []
+        },
+    },
+    'Dog': {
+        'green': {
+            'right': [],
+            'left': []
+        },
+        'grey': {
+            'right': [],
+            'left': []
+        },
+        'orange': {
+            'right': [],
+            'left': []
+        },
+        'pink': {
+            'right': [],
+            'left': []
+        },
+    }
+}
 const TILES = {
     '0,0,0,0': null, //background
     '76,255,0,255': 0,
@@ -160,8 +198,8 @@ var player = {
     y: 0,
     vx: 0,
     vy: 0,
-    w: 32,
-	h: 64,
+    w: 49,
+	h: 32,
     ax: .6,
 	jv: -18,
 	mvx: 50,
@@ -170,20 +208,35 @@ var player = {
     step_h: 16,
     midair: true,
     bombCooldown: 0,
+    type: 'Dog',
+    color: 'green',
+    direction: 'right',
+    animationFrame: 1,
+    animationCount: 18,
     draw() {
-        drawPlayer(this.x, this.y, this.w, this.h, 'red')
+        drawPlayer(this.x, this.y, this.w, this.h, this.type, this.color, this.direction, this.animationFrame)
     },
     update() {
         if(this.bombCooldown > 0) {
             this.bombCooldown -= 1
         }
         this.vy += GRAVITY;
+        this.animationCount -= 1;
+        if(this.vx !== 0 && this.animationCount <= 0) {
+            this.animationFrame = (this.animationFrame + 1) % 4
+            this.animationCount = 18;
+        } else if(this.vx === 0 && this.animationCount <= 0) {
+            this.animationFrame = 1
+            this.animationCount = 20;
+        }
         if (keys[37] || keys[65]) { //left
+            this.direction = 'left'
             this.vx -= this.ax;
             if (this.vx < -this.maxv)
                 this.vx = -this.maxv;
         }
         if (keys[39] || keys[68]) { //right
+            this.direction = 'right'
             this.vx += this.ax;
             if (this.vx > this.maxv)
                 this.vx = this.maxv;
@@ -255,12 +308,31 @@ var player = {
     }
 }
 
-function drawPlayer(x, y, w, h, color) {
-    ctx.fillStyle = color;
+function drawPlayer(x, y, w, h, type, color, direction, frame) {
     let f_x = Math.floor(x - camerax);
     let f_y = Math.floor(y);
-    ctx.fillRect(f_x, f_y, w, h, color);
+    ctx.drawImage(characterImages[type][color][direction][frame], f_x, f_y, w, h)
     
+}
+
+function loadImages() {
+    let src = 'resources/'
+    for(type in characterImages) {
+        typesrc = src + type + '/'
+        for(color in characterImages[type]) {
+            let colorsrc = typesrc + color + '_' + type.toLowerCase() + '/'
+            for(let j = 1; j < 5; j++) {
+                let i = j;
+                if(i == 4) i = 2
+                let rimg = new Image()
+                rimg.src = colorsrc + type.toLowerCase() + '_walking_' + i.toString() + '_r.png'
+                characterImages[type][color]['right'].push(rimg)
+                let limg = new Image()
+                limg.src = colorsrc + type.toLowerCase() + '_walking_' + i.toString() + '_l.png'
+                characterImages[type][color]['left'].push(limg)
+            }
+        }
+    }
 }
 
 function connect() {
@@ -417,6 +489,7 @@ setTimeout(() => {
 }, 500)
 
 function initGame() {
+    loadImages()
     gameInt = setInterval(tick, 1);
     //load frames
     for (let img of frameHtmlImgs) {
@@ -488,7 +561,10 @@ function sendServerTick() {
         y: player.y,
         w: player.w,
         h: player.h,
-        color: 'blue'
+        t: player.type,
+        c: player.color,
+        d: player.direction,
+        af: player.animationFrame
     }));
 }
 
@@ -594,7 +670,7 @@ function draw() {
     }
 
     for(let p of otherplayers) {
-        drawPlayer(p.x, p.y, p.w, p.h, p.color)
+        drawPlayer(p.x, p.y, p.w, p.h, p.t, p.c, p.d, p.af)
     }
     player.draw();
 }
