@@ -42,15 +42,15 @@
               
 
     <div id="gamediv" class="center">
-        <div id="loadmsg">
+        <!-- <div hidden id="loadmsg">
             Loading...
-        </div>
+        </div> -->
         <canvas id="canvas" width="768" height="512"></canvas>
         <canvas hidden id="renderer" width="768" height="512"></canvas>
         <canvas hidden id="alphacanvas" width="768" height="512"></canvas>
         <canvas hidden id="frameloader" width="32" height="32"></canvas>
     </div>
-<!-- alphacanvas: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
+<!-- alpha drawing: https://weblogs.asp.net/bleroy/drawing-transparent-glyphs-on-the-html-canvas-->
 </body>
 
 <img hidden id='frame0' src='Frames/frame_0.png' alt='img'>
@@ -93,10 +93,13 @@ var socket;
 var myServer = getParameterByName('s')
 var myName = getParameterByName('n')
 var myChoice = getParameterByName('c')
+var mySID;
 
+var playing = false;
 
-let W = renderer.width
-let H = renderer.height
+var W = renderer.width
+var H = renderer.height
+var worldW;
 const TILES = {
     '0,0,0,0': null, //background
     '76,255,0,255': 0,
@@ -109,11 +112,16 @@ const TILES = {
     '0,0,0,255': 7,
 }
 
-const PLAYERLIST = -2;
-const READY = -1;
-const CONNECT = 0;
-const TICK = 1;
-const BOMB = 2;
+//packet types
+const SERVER_PLAYING = -4,
+ SERVER_FULL = -3,
+ PLAYERLIST = -2,
+ READY = -1,
+ CONNECT = 0,
+ TICK = 1,
+ BOMB = 2;
+
+
 const GRAVITY = 1;
 const FRICTION = .85;
 const BOMB_FRICTION = .97;
@@ -125,6 +133,8 @@ var frames = [] //lightweight version of frames
 var bombs = []
 var camerax = 0;
 var lastTime = Date.now();
+
+var otherplayers = [];
 
 const frameHtmlImgs = [
     frame0,
@@ -161,10 +171,7 @@ var player = {
     midair: true,
     bombCooldown: 0,
     draw() {
-        ctx.fillStyle = 'red';
-        let f_x = Math.floor(this.x - camerax);
-        let f_y = Math.floor(this.y);
-        ctx.fillRect(f_x, f_y, this.w, this.h, this.color);
+        drawPlayer(this.x, this.y, this.w, this.h, 'red')
     },
     update() {
         if(this.bombCooldown > 0) {
@@ -248,6 +255,14 @@ var player = {
     }
 }
 
+function drawPlayer(x, y, w, h, color) {
+    ctx.fillStyle = color;
+    let f_x = Math.floor(x - camerax);
+    let f_y = Math.floor(y);
+    ctx.fillRect(f_x, f_y, w, h, color);
+    
+}
+
 function connect() {
 	connectmsg.innerText = "Connecting...";
     var url = 'ws://' + myServer + ':8191';
@@ -270,15 +285,29 @@ function connect() {
         document.getElementById("body").style.backgroundColor = "#FFF";
 		connectmsg.innerText = "Connection Closed. You can try reloading, but the server is probably down.";
         buttonsdiv.hidden = true;
+        playing = false;
+        if (gameInt) clearInterval(gameInt);
     }
-    socket.onmessage = e => { //Receiving packets
+    socket.onmessage = e => { // Packet Reception
         let data = JSON.parse(e.data);
         if (data.type == PLAYERLIST) { //used before game starts
             replacePlayerList(data.obj.playerlist);
+        } else if (data.type == SERVER_PLAYING) {
+            connectmsg.innerText = 'Server is Full!'
         } else if (data.type == READY) {
-            console.log("starting")
+            playing = true;
+            mySID = data.obj.id
+            worldframeorder = data.obj.f_ord
+            worldW = worldframeorder.length * W;
+            player.x = data.obj.x
             connectdiv.hidden = true;
             initGame();
+        } else if (data.type == TICK) {
+            let obj = data.obj;
+            camerax = obj.cx;
+            otherplayers = obj.p;
+            // bombs = obj.b;
+
         }
     }
 }
@@ -403,8 +432,7 @@ function initGame() {
     }
     clearCanvas(renderer, ctx);
 
-    // TODO: get from server
-    worldframeorder = [0,1,2,3,4,5]
+    //worldframeorder = [0,1,2,3,4,5] from server instead
     for (let i of worldframeorder) {
         worldframeimgdatas.push(worldframes[i])
     }
@@ -438,19 +466,35 @@ function loadFrameimgdata(frame) {
 }
 
 function update() {
+    // moveCamera()
     player.update()
     for(let i = 0; i < bombs.length; i++) {
         bombs[i].update();
     }
+
+    sendServerTick()
     lastKeys = JSON.parse(JSON.stringify(keys)); //deep copy
 }
 
+function sendServerTick() {
+    socket.send(newPacket(TICK, {
+        x: player.x,
+        y: player.y,
+        w: player.w,
+        h: player.h,
+        color: 'blue'
+    }));
+}
+
+function moveCamera() {
+    // if(camerax + cameravx < (worldframeimgdatas.length - 1) * W) {
+    //     camerax += cameravx;
+    // } else {
+    //     camerax = (worldframeimgdatas.length - 1) * W
+    // }
+}
+
 function tick() {
-    if(camerax + cameravx < (worldframeimgdatas.length - 1) * W) {
-        camerax += cameravx;
-    } else {
-        camerax = (worldframeimgdatas.length - 1) * W
-    }
     if (Date.now() - lastTime > 10) {
         lastTime = Date.now();
         update();
@@ -462,7 +506,7 @@ function tick() {
 
 function flushToCanvas() {
     vis_ctx.drawImage(renderer, 0, 0); //flush to canvas
-    requestAnimationFrame(flushToCanvas);
+    if (playing) requestAnimationFrame(flushToCanvas);
 }
 
 function getFrameData(istile=false) {
@@ -494,6 +538,7 @@ function getFrameData(istile=false) {
 function setWorldAlpha(x, y, val) {
     let framenum = Math.floor(x / W);
     x = x % W
+    framenum %= worldframeorder.length;
     let myframe = worldframeimgdatas[framenum];
     let pos = 4 * (x + y*W) + 3;
     if(pos > myframe.data.length) return
@@ -503,6 +548,7 @@ function setWorldAlpha(x, y, val) {
 function getWorldAlpha(x, y) {
     let framenum = Math.floor(x / W);
     x = x % W
+    framenum %= worldframeorder.length;
     let myframe = worldframeimgdatas[framenum];
     return getAlpha(myframe, y, x);
 }
@@ -517,23 +563,32 @@ function clearCanvas(canvasobj, canvas_ctx) {
     canvas_ctx.clearRect(0, 0, canvasobj.width, canvasobj.height);
 }
 
+function drawworldframe() {
+    let framenum1 = Math.floor(camerax / W) % worldframeorder.length; //first frame to draw
+    let framenum2 = (framenum1 + 1) % worldframeorder.length; //second frame to draw
+    clearCanvas(alphacanvas, a_ctx)
+    a_ctx.putImageData(worldframeimgdatas[framenum1],Math.floor(-camerax%W),0)
+    a_ctx.putImageData(worldframeimgdatas[framenum2],Math.floor(-camerax%W + W), 0)
+    ctx.drawImage(alphacanvas, 0, 0)
+
+}
+
 function draw() {
-    let framenum = Math.floor(camerax / W); //first frame to draw
     clearCanvas(renderer, ctx);
     let backgroundColor = '#337'
     ctx.fillStyle = backgroundColor
     ctx.fillRect(0, 0, W, H);
-    clearCanvas(alphacanvas, a_ctx)
-    a_ctx.putImageData(worldframeimgdatas[framenum],Math.floor(-camerax%W),0)
 
-    if(framenum+1 < worldframeimgdatas.length) {
-        a_ctx.putImageData(worldframeimgdatas[framenum+1],Math.floor(-camerax%W + W), 0)
-    }
-    ctx.drawImage(alphacanvas, 0, 0)
+    drawworldframe();
+
 
     Particles.draw(ctx, camerax)
     for(let i = 0; i < bombs.length; i++) {
         bombs[i].draw();
+    }
+
+    for(let p of otherplayers) {
+        drawPlayer(p.x, p.y, p.w, p.h, p.color)
     }
     player.draw();
 }
@@ -541,7 +596,7 @@ function draw() {
 function explode(ox, oy, range) {
     ox = Math.floor(ox);
     oy = Math.floor(oy);
-    Particles.explode(ox, oy, 'red', range/10)
+    Particles.explode(ox, oy, 'orange', range/10)
     throwPlayer(ox, oy, range);    
     for (let y = oy - range; y < oy + range; y++) {
         for (let x = ox - range; x < ox + range; x++) {
@@ -612,7 +667,7 @@ function findXCollisionRight(x, vx, y, width, height) {
     y = Math.floor(y);
     let right = x + width;
     for (let c = right; c < right + vx; c++) {
-        if (c >= camerax + W) return new Point(c - width, y); //right edge
+        // if (c >= camerax + W) return new Point(c - width, y); //right edge
         for (let r = y; r < y + height; r++) {
             if (getWorldAlpha(c, r) !== 0) {
                 return new Point(c - width, r);
@@ -627,7 +682,7 @@ function findXCollisionLeft(x, vx, y, width, height) {
     x = Math.floor(x);
     y = Math.floor(y);
     for (let c = x-1; c > x + vx-1; c--) {
-        if (c <= camerax) return new Point(camerax, y); //left edge
+        // if (c <= camerax) return new Point(camerax, y); //left edge
         for (let r = y; r < y + height; r++) {
             if (getWorldAlpha(c, r) !== 0) {
                 return new Point(c+1, r);
@@ -654,8 +709,9 @@ function setupInputs() {
         mouseY = e.clientY
     }
     
-    onclick = e => {
-        explode(e.clientX + camerax, e.clientY, 100)
+    canvas.onclick = e => {
+        console.log(e)
+        explode(e.offsetX + camerax, e.offsetY, 100)
     }
 }
 
