@@ -9,6 +9,7 @@ const READY = -1;
 const CONNECT = 0;
 const TICK = 1;
 const EXPLODE = 2;
+const DEATH = 3;
 
 var playing = false;
 var camerax = 0;
@@ -74,10 +75,14 @@ wss.on('connection', function connection(ws) {
             bombs[ws.id] = data.obj.b;
         } else if (data.type == EXPLODE) {
             sendToAll(EXPLODE, data.obj)
+        } else if (data.type == DEATH) {
+            sendToAll(DEATH, data.obj)
         }
     });
     ws.on('close', function closing(data) {
         console.log('Disconnect: ' + ws.name);
+        players[ws.id] = null;
+        bombs[ws.id] = null;
         if (wss.clients.size <= 0) {
             resetServer()
         }

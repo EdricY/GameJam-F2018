@@ -2,6 +2,7 @@
 <html>
 <meta charset="UTF-8">
     <title>THE GAME TITLE!</title>
+	<link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
 
     <style>
         body {
@@ -120,6 +121,7 @@ const SERVER_PLAYING = -4,
  CONNECT = 0,
  TICK = 1,
  EXPLODE = 2;
+ DEATH = 3;
 
 
 const GRAVITY = 1;
@@ -157,111 +159,160 @@ const tileHtmlImgs = [
     Stone,
 ]
 
-var player = {
-    x: 0,
-    y: 0,
-    vx: 0,
-    vy: 0,
-    w: 32,
-	h: 64,
-    ax: .6,
-	jv: -18,
-	mvx: 50,
-	mvy: 20,
-	jumps: 1,
-    step_h: 16,
-    midair: true,
-    bombCooldown: 0,
-    draw() {
-        drawPlayer(this.x, this.y, this.w, this.h, 'red')
-    },
-    update() {
-        if(this.bombCooldown > 0) {
-            this.bombCooldown -= 1
-        }
-        this.vy += GRAVITY;
-        if (keys[37] || keys[65]) { //left
-            this.vx -= this.ax;
-            if (this.vx < -this.maxv)
-                this.vx = -this.maxv;
-        }
-        if (keys[39] || keys[68]) { //right
-            this.vx += this.ax;
-            if (this.vx > this.maxv)
-                this.vx = this.maxv;
-        }
-        if (keys[0] && !lastKeys[0] && this.bombCooldown === 0) {
-            this.bombCooldown = 100;
-            let dx = (mouseX + camerax) - this.x
-            let dy = mouseY - this.y
-            let dc = Math.sqrt(dx ** 2 + dy ** 2)
-            let bvx = dx / dc * 20
-            let bvy = dy / dc * 20
-            bombs[mySID].push(makeBomb(this.x + this.w/2, this.y + this.h/2, bvx, bvy));
-        }
-        if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
-            this.vy = -18;
-        }
-        if (this.vy >= 0) { //moving down
-            let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
-            if (y_cls == null) {
-                this.y += this.vy;
+var player = newPlayer();
+function newPlayer() {
+    return {
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        w: 32,
+        h: 64,
+        ax: .6,
+        jv: -18,
+        mvx: 50,
+        mvy: 20,
+        jumps: 1,
+        step_h: 16,
+        midair: true,
+        bombCooldown: 0,
+        spawning: false,
+        spawnTimer: 100,
+        lives: 3,
+        draw() {
+            drawPlayer(this.x, this.y, this.w, this.h, 'red', this.spawning)
+        },
+        update() {
+            if (this.spawning) {
+                this.x = Math.floor(camerax + 100 + mySID * 100)
+                this.y = 32;
+                this.vx = 0;
+                this.vy = 0;
+                this.spawnTimer--
+                if (this.spawnTimer <= 0) {
+                    this.spawnTimer = 100;
+                    this.spawning = false;
+                    socket.send(newPacket(EXPLODE,{
+                        x: this.x+this.w/2,
+                        y: this.y+this.h/2,
+                        r: Math.max(this.w, this.h),
+                        h: false
+                    }))
+                }
+                return;
+            }
+
+            if(this.bombCooldown > 0) {
+                this.bombCooldown -= 1
+            }
+            this.vy += GRAVITY;
+            if (keys[37] || keys[65]) { //left
+                this.vx -= this.ax;
+                if (this.vx < -this.maxv)
+                    this.vx = -this.maxv;
+            }
+            if (keys[39] || keys[68]) { //right
+                this.vx += this.ax;
+                if (this.vx > this.maxv)
+                    this.vx = this.maxv;
+            }
+            if (keys[0] && !lastKeys[0] && this.bombCooldown === 0) {
+                this.bombCooldown = 100;
+                let dx = (mouseX + camerax) - this.x
+                let dy = mouseY - this.y
+                let dc = Math.sqrt(dx ** 2 + dy ** 2)
+                let bvx = dx / dc * 20
+                let bvy = dy / dc * 20
+                bombs[mySID].push(makeBomb(this.x + this.w/2, this.y + this.h/2, bvx, bvy));
+            }
+            if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
+                this.vy = -18;
+            }
+            if (this.vy >= 0) { //moving down
+                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
+                if (y_cls == null) {
+                    this.y += this.vy;
+                    this.midair = true;
+                } else { //landed on something
+                    this.vy = 0;
+                    this.y = y_cls.y;
+                    this.midair = false;
+                }
+            } else { //moving up
+                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.w, this.h);
                 this.midair = true;
-            } else { //landed on something
-                this.vy = 0;
-                this.y = y_cls.y;
-                this.midair = false;
-            }
-        } else { //moving up
-            let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.w, this.h);
-            this.midair = true;
-            if (y_cls == null) {
-                this.y += this.vy;
-            } else { //hit your head
-                this.vy = 0;
-                this.y = y_cls.y;
-                this.midair = false;
-            }
-        }
-        if (this.vx > 0) { //moving right
-            let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.w, this.h);
-            if (x_cls == null) this.x += this.vx;
-            else { //hit wall
-                let step_h = this.y + this.h - x_cls.y;
-                if (step_h <= this.step_h) {
-                    this.x = x_cls.x + 1;
-                    this.y -= step_h; //not implemented: climbing more than 1 step
-                } else {
-                    this.vx = 0;
-                    this.x = x_cls.x;
+                if (y_cls == null) {
+                    this.y += this.vy;
+                } else { //hit your head
+                    this.vy = 0;
+                    this.y = y_cls.y;
+                    this.midair = false;
                 }
             }
-        } else if(this.vx < 0) { //moving left
-            let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.w, this.h);
-            if (x_cls == null) this.x += this.vx;
-            else { //hit wall
-                let step_h = this.y + this.h - x_cls.y;
-                if (step_h <= this.step_h) {
-                    this.x = x_cls.x - 1;
-                    this.y -= step_h; //not implemented: climbing more than 1 step
-                } else {
-                    this.vx = 0;
-                    this.x = x_cls.x;
+            if (this.vx > 0) { //moving right
+                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.w, this.h);
+                if (x_cls == null) this.x += this.vx;
+                else { //hit wall
+                    let step_h = this.y + this.h - x_cls.y;
+                    if (step_h <= this.step_h) {
+                        this.x = x_cls.x + 1;
+                        this.y -= step_h; //not implemented: climbing more than 1 step
+                    } else {
+                        this.vx = 0;
+                        this.x = x_cls.x;
+                    }
+                }
+            } else if(this.vx < 0) { //moving left
+                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.w, this.h);
+                if (x_cls == null) this.x += this.vx;
+                else { //hit wall
+                    let step_h = this.y + this.h - x_cls.y;
+                    if (step_h <= this.step_h) {
+                        this.x = x_cls.x - 1;
+                        this.y -= step_h; //not implemented: climbing more than 1 step
+                    } else {
+                        this.vx = 0;
+                        this.x = x_cls.x;
+                    }
                 }
             }
-        }
-        this.vx *= FRICTION;
-        if (Math.abs(this.vx) - .01 < 0) {
-            this.vx = 0;
+            this.vx *= FRICTION;
+            if (Math.abs(this.vx) - .01 < 0) {
+                this.vx = 0;
+            }
+
+            //death
+            let ledge = camerax - 30
+            let redge = camerax + W + 30
+            let uedge = -30
+            let dedge = H + 30
+            if (this.x > redge) killplayer();
+            if (this.x+this.w < ledge) killplayer();
+            if (this.y > dedge) killplayer();
+            if (this.y+this.h < uedge) killplayer();
+            
         }
     }
 }
 
-function drawPlayer(x, y, w, h, color) {
-    ctx.fillStyle = color;
-    let f_x = Math.floor(x - camerax);
-    let f_y = Math.floor(y);
-    ctx.fillRect(f_x, f_y, w, h, color);
+function killplayer() {
+    socket.send(newPacket(DEATH, {x: player.x, y: player.y}))
+    player.spawning = true;
+    if (player.lives == 0) {
+        player.draw = () => {};
+        player.update = () => {};
+    } else {
+        player.lives--;
+    }
+}
+
+function drawPlayer(x, y, w, h, color, spawning=false) {
+    if (!spawning || Date.now() % 5 == 0) {
+        ctx.fillStyle = color;
+        let f_x = Math.floor(x - camerax);
+        let f_y = Math.floor(y);
+        ctx.fillRect(f_x, f_y, w, h, color);
+    }
     
 }
 
@@ -311,15 +362,21 @@ function connect() {
         } else if (data.type == TICK) {
             let obj = data.obj;
             camerax = obj.cx;
-            otherplayers = obj.p;
+            for (let listi in obj.p) {
+                if (listi != mySID){
+                    otherplayers[listi] = obj.p[listi];
+                }
+            }
             for (let listi in obj.b) {
                 if (listi != mySID){
                     bombs[listi] = obj.b[listi];
                 }
             }
 
-        }  else if (data.type == EXPLODE) {
-            explode(data.obj.x, data.obj.y, data.obj.r)
+        } else if (data.type == EXPLODE) {
+            explode(data.obj.x, data.obj.y, data.obj.r, data.obj.h)
+        } else if (data.type == DEATH) {
+            Particles.spiral(data.obj.x, data.obj.y, 'green', 20);
         }
     }
 }
@@ -355,8 +412,8 @@ function makeBomb(x, y, vx, vy) {
         y: y,
         vx: vx,
         vy: vy,
-        rw: 5,
-        rh: 5,
+        rw: 10,
+        rh: 10,
         countdown: 100,
         getAsObj() {
             return {x:this.x, y:this.y, rh: this.rh, rw: this.rw}
@@ -368,7 +425,8 @@ function makeBomb(x, y, vx, vy) {
                 socket.send(newPacket(EXPLODE, { 
                     x: this.x,
                     y: this.y,
-                    r: 50
+                    r: 50,
+                    h: true
                 }))
             }
             this.vy += GRAVITY;
@@ -487,7 +545,6 @@ function loadFrameimgdata(frame) {
 }
 
 function update() {
-    // moveCamera()
     player.update()
     if (bombs[mySID]) {
         for(let i = 0; i < bombs[mySID].length; i++) {
@@ -516,13 +573,6 @@ function sendServerTick() {
     }));
 }
 
-function moveCamera() {
-    // if(camerax + cameravx < (worldframeimgdatas.length - 1) * W) {
-    //     camerax += cameravx;
-    // } else {
-    //     camerax = (worldframeimgdatas.length - 1) * W
-    // }
-}
 
 function tick() {
     if (Date.now() - lastTime > 10) {
@@ -586,6 +636,7 @@ function getWorldAlpha(x, y) {
 }
 
 function getAlpha(frameimgdata, row, col) {
+    if (row < 0 || row >= H) return 0;
     let pos = 4 * (col + row*W) + 3;
     return frameimgdata.data[pos];
 }
@@ -616,8 +667,11 @@ function draw() {
 
     Particles.draw(ctx, camerax)
     
-    for(let p of otherplayers) {
-        drawPlayer(p.x, p.y, p.w, p.h, p.color)
+    for(let i in otherplayers) {
+        if (i != mySID) {
+            let p = otherplayers[i]
+            if (p) drawPlayer(p.x, p.y, p.w, p.h, p.color)
+        }
     }
     player.draw();
     for(let i = 0; i < bombs.length; i++) {
@@ -626,13 +680,21 @@ function draw() {
             if (b) drawBomb(b.x, b.y, b.rw, b.rh, 'black')
         }
     }
+    drawHUD();
 }
 
-function explode(ox, oy, range) {
+function drawHUD() {
+    ctx.font = "24px 'Press Start 2P'";
+    ctx.fillStyle = "yellow"
+    ctx.textAlign = "start"
+    ctx.fillText(player.lives, 0, 24)
+}
+
+function explode(ox, oy, range, hitplayers=true) {
     ox = Math.floor(ox);
     oy = Math.floor(oy);
     Particles.explode(ox, oy, 'orange', range/10)
-    throwPlayer(ox, oy, range);    
+    if (hitplayers) throwPlayer(ox, oy, range);    
     for (let y = oy - range; y < oy + range; y++) {
         for (let x = ox - range; x < ox + range; x++) {
             let ydist = y-oy;
@@ -669,7 +731,7 @@ function throwPlayer(x, y, range) {
     x = Math.floor(x);
     let bottom = y + height
     for (let r = bottom; r < bottom + vy; r++) {
-        if (r >= H) return new Point(x, H - height);
+        // if (r >= H) return new Point(x, H - height);
         for (let c = x; c < x + width; c++) {
             if (getWorldAlpha(c, r) !== 0) {
                 return new Point(c, r - height);
@@ -684,7 +746,7 @@ function findYCollisionUp(y, vy, x, width, height) {
     y = Math.floor(y);
     x = Math.floor(x);
     for (let r = y-1; r > y + vy-1; r--) {
-        if (r <= 0) return new Point(x, 0);
+        // if (r <= 0) return new Point(x, 0);
         for (let c = x; c < x + width; c++) {
             if (getWorldAlpha(c, r) !== 0) {
                 return new Point(c, r+1);
