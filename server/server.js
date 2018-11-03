@@ -10,14 +10,27 @@ const CONNECT = 0;
 const TICK = 1;
 const EXPLODE = 2;
 const DEATH = 3;
+const AMMO = 4;
+const POWERUP = 5;
 
 var playing = false;
 var camerax = 0;
 var cameravx = .5;
 
+var ammoTimer = 100;
+var powerupTimer = 100;
+const AW = 32;
+const AH = 32;
+const PW = 49;
+const PH = 32;
+
+
 var f_ord = [];
 var players = [];
 var bombs = [];
+var ammos = [];
+var powerups = [];
+
 
 var W = 768
 var H = 512
@@ -148,13 +161,94 @@ function Packet(type, obj) {
 function tick() {
     if (playing) {
         camerax += cameravx;
-
         sendToAll(TICK, {
             cx: camerax,
             p: players,
-            b: bombs
+            b: bombs,
+            a: ammos,
+            pows: powerups
         })
+
+        for (let i in ammos) {
+            let ammo = ammos[i];
+            if (ammo.x < camerax - 30) {
+                ammos.splice(i--, 1)
+                continue
+            }
+            for (let j in players) {
+                let p = players[j]
+                if (rectRectCollision(p.x, p.y, PW, PH, ammo.x, ammo.y, AW, AH)) {
+                    sendAmmo(j);
+                    ammos.splice(i--, 1);
+                    continue
+                }
+            }
+        }
+
+        for (let i in powerups) {
+            let pow = powerups[i];
+            if (pow.x < camerax - 30) {
+                powerups.splice(i--, 1)
+                continue
+            }
+            for (let j in players) {
+                let p = players[j]
+                if (rectRectCollision(p.x, p.y, PW, PH, pow.x, pow.y, AW, AH)) {
+                    sendPowerup(j);
+                    powerups.splice(i--, 1);
+                    continue
+                }   
+            }
+        }
+
+        ammoTimer--;
+        if (ammoTimer <= 0) {
+            let newa = {
+                x: Math.floor(camerax + W + (Math.random() * W)),
+                y: 32 + Math.floor(Math.random() * (H-32))
+            }
+            ammos.push(newa)
+            ammoTimer = 200 + Math.floor(100 * Math.random())
+        }
+        powerupTimer--;
+        if (powerupTimer <= 0) {
+            let newp = {
+                x: Math.floor(camerax + W + (Math.random() * W)),
+                y: 32 + Math.floor(Math.random() * (H-32))
+            }
+            powerups.push(newp)
+            powerupTimer = 200 + Math.floor(100 * Math.random())
+
+        }
+
     }
+
+}
+
+function sendAmmo(id){
+    wss.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN && client.id == id) {
+            client.send(newPacket(AMMO, null));
+        }
+    });
+    return null;
+}
+
+function sendPowerup(id){
+    wss.clients.forEach(function each(client) {
+        if (client.readyState === WebSocket.OPEN && client.id == id) {
+            client.send(newPacket(POWERUP, null));
+        }
+    });
+    return null;
+}
+
+function rectRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+    if (x1 < x2 + w2 && x1 + w1 > x2 &&
+        y1 < y2 + h2 && y1 + h1 > y2) {
+        return true;
+    }
+    return false;
 
 }
 

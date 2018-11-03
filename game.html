@@ -70,8 +70,8 @@
 <img hidden id="Dirt" src="Tiles/Dirt.png" alt="tileimg">
 <img hidden id="Brick" src="Tiles/Brick.png" alt="tileimg">
 
-
-<img hidden id='tileimg' src='tile.png' alt='img'>
+<img hidden id="bomb_box" src="resources/bomb_box.png" alt="bombbox">
+<img hidden id="bomb_upgrade" src="resources/bomb_upgrade.png" alt="bomb_upgrade">
 
 <script type="text/javascript" src="particles.js"></script>
 <script type="text/javascript">
@@ -168,6 +168,8 @@ const SERVER_PLAYING = -4,
  TICK = 1,
  EXPLODE = 2;
  DEATH = 3;
+ AMMO = 4;
+ POWERUP = 5;
 
 
 const GRAVITY = 1;
@@ -179,6 +181,8 @@ var worldframes = [] // heavyweight version of frames (same for all)
 var worldframeorder = [] // get this from server
 var frames = [] //lightweight version of frames
 var bombs = [];
+var ammoboxes = [];
+var powerups = [];
 var camerax = 0;
 var lastTime = Date.now();
 
@@ -218,13 +222,12 @@ function newPlayer() {
         jv: -18,
         mvx: 50,
         mvy: 20,
-        jumps: 1,
-        step_h: 16,
+        step_h: 12,
         midair: true,
-        bombCooldown: 0,
         spawning: false,
         spawnTimer: 100,
         lives: 3,
+        ammo: 10,
         type: myChoice == 0 ? 'Dog': 'Cat',
         color: P_COLORS[mySID],
         direction: 'right',
@@ -236,7 +239,7 @@ function newPlayer() {
         update() {
             if (this.spawning) {
                 this.x = Math.floor(camerax + 100 + mySID * 100)
-                this.y = 32;
+                this.y = 64;
                 this.vx = 0;
                 this.vy = 0;
                 this.spawnTimer--
@@ -251,9 +254,6 @@ function newPlayer() {
                     }))
                 }
                 return;
-            }
-            if(this.bombCooldown > 0) {
-                this.bombCooldown -= 1
             }
             this.vy += GRAVITY;
             this.animationCount -= 1;
@@ -274,17 +274,12 @@ function newPlayer() {
                 if (this.vx > this.maxv)
                     this.vx = this.maxv;
             }
-            if (keys[0] && !lastKeys[0] && this.bombCooldown === 0) {
-                this.bombCooldown = 100;
-                let dx = (mouseX + camerax) - this.x
-                let dy = mouseY - this.y
-                let dc = Math.sqrt(dx ** 2 + dy ** 2)
-                let bvx = dx / dc * 20
-                let bvy = dy / dc * 20
-                bombs[mySID].push(makeBomb(this.x + this.w/2, this.y + this.h/2, bvx, bvy));
+            if (keys[0] && !lastKeys[0] && this.ammo > 0) {
+                this.ammo --;
+                bombs[mySID].push(makeBomb())
             }
-            if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
-                this.vy = -18;
+            if (!player.midair && ((keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) ) { //up
+                this.vy = Math.min(-18 + this.ammo, -5);
             }
             if (this.vy >= 0) { //moving down
                 let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
@@ -359,10 +354,9 @@ function killplayer() {
     if (player.lives == 0) {
         player.draw = () => {};
         player.update = () => {};
-        player.lives = "Dead"
-    } else {
-        player.lives--;
     }
+    player.lives--;
+    
 }
 
 function drawPlayer(x, y, w, h, type, color, direction, frame, spawning=false) {
@@ -446,15 +440,20 @@ function connect() {
                 }
             }
             for (let listi in obj.b) {
-                if (listi != mySID){
+                if (listi != mySID) {
                     bombs[listi] = obj.b[listi];
                 }
             }
-
+            ammoboxes = obj.a;
+            powerups = obj.pows;
         } else if (data.type == EXPLODE) {
             explode(data.obj.x, data.obj.y, data.obj.r, data.obj.h)
         } else if (data.type == DEATH) {
             Particles.spiral(data.obj.x, data.obj.y, data.obj.c, 100);
+        } else if (data.type == AMMO) {
+            player.ammo++;
+        } else if (data.type == POWERUP) {
+            player.ammo+=2;
         }
     }
 }
@@ -484,8 +483,16 @@ function replacePlayerList(playerlist){
 }
 
 
-function makeBomb(x, y, vx, vy) {
-    var bomb = {
+function makeBomb() {
+    let x = player.x + player.w/2
+    let y = player.y + player.h/2
+    let dx = (mouseX + camerax) - x
+    let dy = mouseY - y
+    let dc = Math.sqrt(dx ** 2 + dy ** 2)
+    let vx = dx / dc * 20
+    let vy = dy / dc * 20
+
+    return {
         x: x,
         y: y,
         vx: vx,
@@ -498,7 +505,7 @@ function makeBomb(x, y, vx, vy) {
         },
         update() {
             this.countdown -= 1;
-            if(this.countdown == 0) {
+            if(this.countdown <= 0) {
                 bombs[mySID].pop()
                 socket.send(newPacket(EXPLODE, { 
                     x: this.x,
@@ -513,7 +520,7 @@ function makeBomb(x, y, vx, vy) {
                 if (y_cls == null) { 
                     this.y += this.vy;
                 } else { //landed on something
-                    this.vy = this.vy * -0.7;;
+                    this.vy = this.vy * -0.5;;
                     this.y = y_cls.y;
                 }
             } else { //moving up
@@ -521,7 +528,7 @@ function makeBomb(x, y, vx, vy) {
                 if (y_cls == null) {
                     this.y += this.vy;
                 } else { //hit your head
-                    this.vy = this.vy * -0.7;;
+                    this.vy = this.vy * -0.5;;
                     this.y = y_cls.y;
                 }
             }
@@ -529,14 +536,14 @@ function makeBomb(x, y, vx, vy) {
                 let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.rw, this.rh);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
-                    this.vx = this.vx * -0.7;
+                    this.vx = this.vx * -0.5;
                     this.x = x_cls.x;
                 }
             } else if(this.vx < 0) { //moving left
                 let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.rw, this.rh);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
-                    this.vx = this.vx * -0.7;
+                    this.vx = this.vx * -0.5;
                     this.x = x_cls.x;
                 }
             }
@@ -546,7 +553,6 @@ function makeBomb(x, y, vx, vy) {
             }
         }
     }
-    return bomb;
 }
 
 function drawBomb(x, y, rw, rh, color) {
@@ -627,11 +633,10 @@ function loadFrameimgdata(frame) {
 function update() {
     player.update()
     if (bombs[mySID]) {
-        for(let i = 0; i < bombs[mySID].length; i++) {
+        for (let i = 0; i < bombs[mySID].length; i++) {
             bombs[mySID][i].update();
         }
     }
-
     sendServerTick()
     lastKeys = JSON.parse(JSON.stringify(keys)); //deep copy
 }
@@ -759,19 +764,38 @@ function draw() {
     }
     player.draw();
     for(let i = 0; i < bombs.length; i++) {
-        for(let j = 0; j < bombs.length; j++) {
+        for(let j = 0; j < bombs[i].length; j++) {
             let b = bombs[i][j]
             if (b) drawBomb(b.x, b.y, b.rw, b.rh, 'black')
         }
     }
+    for (let a of ammoboxes) {
+        drawAmmo(a.x, a.y);
+    }
+    for (let pow of powerups) {
+        drawPowerUp(pow.x, pow.y);
+    }
     drawHUD();
+}
+
+function drawAmmo(x, y) {
+    ctx.drawImage(bomb_box, x-camerax, y);
+}
+
+function drawPowerUp(x, y) {
+    ctx.drawImage(bomb_upgrade, x-camerax, y);
 }
 
 function drawHUD() {
     ctx.font = "24px 'Press Start 2P'";
     ctx.fillStyle = "yellow"
     ctx.textAlign = "start"
-    ctx.fillText(player.lives, 0, 24)
+    let msg = 'Lives: ' + player.lives
+    if (player.lives < 0) msg = 'Dead'
+    ctx.fillText(msg, 0, 24)
+    ctx.textAlign = "end"
+    msg = 'Ammo: ' + player.ammo
+    ctx.fillText(msg, W, 24)
 }
 
 function explode(ox, oy, range, hitplayers=true) {
