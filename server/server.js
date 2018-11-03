@@ -12,7 +12,7 @@ const EXPLODE = 2;
 
 var playing = false;
 var camerax = 0;
-var cameravx = 0;
+var cameravx = .5;
 
 var f_ord = [];
 var players = [];
@@ -62,6 +62,7 @@ wss.on('connection', function connection(ws) {
                             id: client.id,
                             f_ord: f_ord,
                             x: 100 + client.id * 150,
+                            num: wss.clients.size
                         }
                         client.send(newPacket(READY, startinfo));
                     }
@@ -69,7 +70,8 @@ wss.on('connection', function connection(ws) {
                 return
             }
         } else if (data.type == TICK) {
-            players[ws.id] = data.obj;
+            players[ws.id] = data.obj.p;
+            bombs[ws.id] = data.obj.b;
         } else if (data.type == EXPLODE) {
             sendToAll(EXPLODE, data.obj)
         }
@@ -77,20 +79,20 @@ wss.on('connection', function connection(ws) {
     ws.on('close', function closing(data) {
         console.log('Disconnect: ' + ws.name);
         if (wss.clients.size <= 0) {
-            playing = false;
             resetServer()
         }
     });
 });
 
 function resetServer() {
-
+    playing = false;
+    camerax = 0;
 }
 
 function generateFrameOrder() {
     let numFrames = 6;
     let order = []
-    order.push(0)
+    order.push(1)
     for (let i = 0; i < 1; i++) {
         order.push(Math.floor(Math.random() * numFrames))
     }

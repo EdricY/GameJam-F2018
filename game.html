@@ -130,9 +130,11 @@ var worldframeimgdatas = [] // actual world data
 var worldframes = [] // heavyweight version of frames (same for all)
 var worldframeorder = [] // get this from server
 var frames = [] //lightweight version of frames
-var bombs = []
+var bombs = [];
 var camerax = 0;
 var lastTime = Date.now();
+
+var numPlayers;
 
 var otherplayers = [];
 
@@ -188,14 +190,14 @@ var player = {
             if (this.vx > this.maxv)
                 this.vx = this.maxv;
         }
-        if (keys[32] && !lastKeys[32] && this.bombCooldown === 0) {
+        if (keys[0] && !lastKeys[0] && this.bombCooldown === 0) {
             this.bombCooldown = 100;
             let dx = (mouseX + camerax) - this.x
             let dy = mouseY - this.y
             let dc = Math.sqrt(dx ** 2 + dy ** 2)
-            let vx = dx / dc * 20  
-            let vy = dy / dc * 20
-            bombs.push(makeBomb(this.x, this.y, vx, vy));
+            let bvx = dx / dc * 20
+            let bvy = dy / dc * 20
+            bombs[mySID].push(makeBomb(this.x + this.w/2, this.y + this.h/2, bvx, bvy));
         }
         if (this.jumps && (keys[38] || keys[87]) && (!lastKeys[38] && !lastKeys[87])) { //up
             this.vy = -18;
@@ -300,13 +302,21 @@ function connect() {
             worldframeorder = data.obj.f_ord
             worldW = worldframeorder.length * W;
             player.x = data.obj.x
+            numPlayers = data.obj.num
+            for (let i = 0; i < numPlayers; i++) {
+                bombs.push([])
+            }
             connectdiv.hidden = true;
             initGame();
         } else if (data.type == TICK) {
             let obj = data.obj;
             camerax = obj.cx;
             otherplayers = obj.p;
-            // bombs = obj.b;
+            for (let listi in obj.b) {
+                if (listi != mySID){
+                    bombs[listi] = obj.b[listi];
+                }
+            }
 
         }  else if (data.type == EXPLODE) {
             explode(data.obj.x, data.obj.y, data.obj.r)
@@ -336,7 +346,6 @@ function replacePlayerList(playerlist){
         lsit.style.padding = '10px';
         players_ul.appendChild(lsit);
     }
-
 }
 
 
@@ -346,19 +355,16 @@ function makeBomb(x, y, vx, vy) {
         y: y,
         vx: vx,
         vy: vy,
-        w: 10,
-        h: 10,
+        rw: 5,
+        rh: 5,
         countdown: 100,
-        draw() {
-            ctx.fillStyle = 'black';
-            let f_x = Math.floor(this.x - camerax);
-            let f_y = Math.floor(this.y);
-            ctx.fillRect(f_x, f_y, this.w, this.h, this.color);
+        getAsObj() {
+            return {x:this.x, y:this.y, rh: this.rh, rw: this.rw}
         },
         update() {
             this.countdown -= 1;
             if(this.countdown == 0) {
-                bombs.pop()
+                bombs[mySID].pop()
                 socket.send(newPacket(EXPLODE, { 
                     x: this.x,
                     y: this.y,
@@ -367,15 +373,15 @@ function makeBomb(x, y, vx, vy) {
             }
             this.vy += GRAVITY;
             if (this.vy >= 0) { //moving down
-                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.w, this.h);
-                if (y_cls == null) {
+                let y_cls = findYCollisionDown(this.y, this.vy, this.x, this.rw, this.rh);
+                if (y_cls == null) { 
                     this.y += this.vy;
                 } else { //landed on something
                     this.vy = this.vy * -0.7;;
                     this.y = y_cls.y;
                 }
             } else { //moving up
-                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.w, this.h);
+                let y_cls = findYCollisionUp(this.y, this.vy, this.x, this.rw, this.rh);
                 if (y_cls == null) {
                     this.y += this.vy;
                 } else { //hit your head
@@ -384,14 +390,14 @@ function makeBomb(x, y, vx, vy) {
                 }
             }
             if (this.vx > 0) { //moving right
-                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.w, this.h);
+                let x_cls = findXCollisionRight(this.x, this.vx, this.y, this.rw, this.rh);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
                     this.vx = this.vx * -0.7;
                     this.x = x_cls.x;
                 }
             } else if(this.vx < 0) { //moving left
-                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.w, this.h);
+                let x_cls = findXCollisionLeft(this.x, this.vx, this.y, this.rw, this.rh);
                 if (x_cls == null) this.x += this.vx;
                 else { //hit wall
                     this.vx = this.vx * -0.7;
@@ -405,6 +411,15 @@ function makeBomb(x, y, vx, vy) {
         }
     }
     return bomb;
+}
+
+function drawBomb(x, y, rw, rh, color) {
+    let f_x = Math.floor(x - camerax);
+    let f_y = Math.floor(y);
+    ctx.beginPath();
+    ctx.ellipse(f_x, f_y, rw, rh, 0, 0, tau);
+    ctx.fillStyle = color;
+    ctx.fill()
 }
 
 function Point(x, y) {
@@ -474,8 +489,10 @@ function loadFrameimgdata(frame) {
 function update() {
     // moveCamera()
     player.update()
-    for(let i = 0; i < bombs.length; i++) {
-        bombs[i].update();
+    if (bombs[mySID]) {
+        for(let i = 0; i < bombs[mySID].length; i++) {
+            bombs[mySID][i].update();
+        }
     }
 
     sendServerTick()
@@ -483,12 +500,19 @@ function update() {
 }
 
 function sendServerTick() {
+    let mybombs = [];
+    for (let bomb of bombs[mySID]) {
+        mybombs.push(bomb.getAsObj())
+    }
     socket.send(newPacket(TICK, {
-        x: player.x,
-        y: player.y,
-        w: player.w,
-        h: player.h,
-        color: 'blue'
+        p: {
+            x: player.x,
+            y: player.y,
+            w: player.w,
+            h: player.h,
+            color: 'blue'
+        },
+        b: mybombs
     }));
 }
 
@@ -543,7 +567,8 @@ function getFrameData(istile=false) {
 
 function setWorldAlpha(x, y, val) {
     let framenum = Math.floor(x / W);
-    x = x % W
+    if (framenum < 0) return;
+    x = (x+W) % W
     framenum %= worldframeorder.length;
     let myframe = worldframeimgdatas[framenum];
     let pos = 4 * (x + y*W) + 3;
@@ -553,7 +578,8 @@ function setWorldAlpha(x, y, val) {
 
 function getWorldAlpha(x, y) {
     let framenum = Math.floor(x / W);
-    x = x % W
+    if (framenum < 0) return 0;
+    x = (x+W) % W
     framenum %= worldframeorder.length;
     let myframe = worldframeimgdatas[framenum];
     return getAlpha(myframe, y, x);
@@ -589,14 +615,17 @@ function draw() {
 
 
     Particles.draw(ctx, camerax)
-    for(let i = 0; i < bombs.length; i++) {
-        bombs[i].draw();
-    }
-
+    
     for(let p of otherplayers) {
         drawPlayer(p.x, p.y, p.w, p.h, p.color)
     }
     player.draw();
+    for(let i = 0; i < bombs.length; i++) {
+        for(let j = 0; j < bombs.length; j++) {
+            let b = bombs[i][j]
+            if (b) drawBomb(b.x, b.y, b.rw, b.rh, 'black')
+        }
+    }
 }
 
 function explode(ox, oy, range) {
@@ -616,14 +645,16 @@ function explode(ox, oy, range) {
 }
 
 function throwPlayer(x, y, range) {
-    let dx = (player.x + player.w / 2) - x;
-    let dy = (player.y + player.h / 2) - y
-    if(Math.abs(dx) < range && Math.abs(dy) < range) {
+    let pcx = player.x + player.w/2;
+    let pcy = player.y + player.h/2;
+    let dx = pcx - x;
+    let dy = pcy - y
+    if(Math.abs(dx) < 2*range && Math.abs(dy) < 2*range) {
         let dc = Math.sqrt(dx ** 2 + dy ** 2)
         let vx = dx / Math.abs(dx) / dc * 1000
         let vy = dy / Math.abs(dy) / dc * 500
-        player.vx += Math.floor(vx)
-        player.vy += Math.floor(vy)
+        player.vx += vx
+        player.vy += vy
     }
 }
 
@@ -714,9 +745,20 @@ function setupInputs() {
         mouseX = e.offsetX
         mouseY = e.offsetY
     }
-    
-    canvas.onclick = e => {
+
+    canvas.onmousedown = e => {
+        let k = e.button;
+        keys[k] = true;
+    }
+    canvas.onmouseup = e => {
+        let k = e.button;
+        keys[k] = false;
+    }
+
+    canvas.oncontextmenu = e => {
+        e.preventDefault();
         explode(e.offsetX + camerax, e.offsetY, 100)
+
     }
 }
 
