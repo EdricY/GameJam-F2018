@@ -72,6 +72,7 @@
 
 <img hidden id="bomb_box" src="resources/bomb_box.png" alt="bombbox">
 <img hidden id="bomb_upgrade" src="resources/bomb_upgrade.png" alt="bomb_upgrade">
+<img hidden id="bomb" src="resources/bomb.png" alt="bomb">
 
 <script type="text/javascript" src="particles.js"></script>
 <script type="text/javascript">
@@ -558,10 +559,11 @@ function makeBomb() {
 function drawBomb(x, y, rw, rh, color) {
     let f_x = Math.floor(x - camerax);
     let f_y = Math.floor(y);
-    ctx.beginPath();
-    ctx.ellipse(f_x, f_y, rw, rh, 0, 0, tau);
-    ctx.fillStyle = color;
-    ctx.fill()
+    ctx.drawImage(bomb, f_x, f_y, rw, rh);
+    // ctx.beginPath();
+    // ctx.ellipse(f_x, f_y, rw, rh, 0, 0, tau);
+    // ctx.fillStyle = color;
+    // ctx.fill()
 }
 
 function Point(x, y) {
@@ -591,14 +593,18 @@ function initGame() {
 
     //load into worldframes
 
-    for (let f in frames) {
-        loadFrameimgdata(frames[f])
-    }
+    // for (let f in frames) {
+    //     loadFrameimgdata(frames[f])
+    // }
     clearCanvas(renderer, ctx);
 
     //worldframeorder = [0,1,2,3,4,5] from server instead
-    for (let i of worldframeorder) {
-        worldframeimgdatas.push(worldframes[i])
+    for (let i in worldframeorder) {
+        let f = worldframeorder[i]
+        let newframe = loadFrameimgdata(frames[f])
+        // worldframeimgdatas.push(worldframes[i])
+        worldframeimgdatas.push(newframe)
+        
     }
 
     setupInputs();
@@ -627,7 +633,8 @@ function loadFrameimgdata(frame) {
     //store in frameimgdata(temp)
     let fd = ctx.getImageData(0, 0, W, H)
     //push to worldframeimgdatas
-    worldframes.push(fd);
+    // worldframes.push(fd);
+    return fd
 }
 
 function update() {

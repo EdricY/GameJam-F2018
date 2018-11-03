@@ -108,14 +108,15 @@ function resetServer() {
     camerax = 0;
     bombs = [];
     players = [];
+    difficulty = 0;
 }
 
 function generateFrameOrder() {
-    let numFrames = 6;
+    let frameChoices = 6;
     let order = []
     order.push(1)
-    for (let i = 0; i < 12; i++) {
-        order.push(Math.floor(Math.random() * numFrames))
+    for (let i = 0; i < 2; i++) {
+        order.push(Math.floor(Math.random() * frameChoices))
     }
     return order;
 }
@@ -161,9 +162,9 @@ function Packet(type, obj) {
 
 function tick() {
     if (playing) {
-        difficulty += .001
+        difficulty += .0001
         camerax += cameravx;
-        cameravx = 1+difficulty;
+        cameravx = .5+difficulty;
         sendToAll(TICK, {
             cx: camerax,
             p: players,
