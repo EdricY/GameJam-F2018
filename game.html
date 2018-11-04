@@ -493,7 +493,7 @@ function loadImages() {
 
 function connect() {
 	connectmsg.innerText = "Connecting... (make sure you allow unsafe scripts)";
-    var url = 'ws://' + myServer + ':8191';
+    var url = 'ws://' + myServer + ':8193';
     socket = new WebSocket(url);
     socket.onopen = function () {
 		connectmsg.hidden = true;
