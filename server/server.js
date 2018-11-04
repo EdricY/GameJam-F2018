@@ -300,13 +300,3 @@ function rectRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
 
 setInterval(tick, 10);
 
-
-
-/// API server
-var express = require('express')
-var app = express()
-var port = 8192;
-app.listen(port, () => console.log(`API Server listening on port ${port}`))
-
-app.get('/playing', (req, res) => res.send(playing))
-app.get('/players', (req, res) => res.send(wss.clients.size.toString()))
