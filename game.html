@@ -953,6 +953,21 @@ function setWorldAlpha(x, y, val) {
     myframe.data[pos] = val;
 }
 
+function darkenWorld(x, y) {
+    let framenum = Math.floor(x / W);
+    if (framenum < 0) return;
+    x = (x+W) % W
+    framenum %= worldframeorder.length;
+    let myframe = worldframeimgdatas[framenum];
+    let pos = 4 * (x + y*W);
+    if(pos > myframe.data.length) return
+    let rand = 1 + Math.floor(Math.random() * 4);
+    myframe.data[pos]  /= rand;
+    myframe.data[pos+1]/= rand;
+    myframe.data[pos+2]/= rand;
+}
+
+
 function getWorldAlpha(x, y) {
     let framenum = Math.floor(x / W);
     if (framenum < 0) return 0;
@@ -1139,12 +1154,14 @@ function explode(ox, oy, range, hitplayers=true) {
     oy = Math.floor(oy);
     Particles.explode(ox, oy, 'orange', 50, range/6)
     if (hitplayers) throwPlayer(ox, oy, range);    
-    for (let y = oy - range; y < oy + range; y++) {
-        for (let x = ox - range; x < ox + range; x++) {
+    for (let y = oy - range * 2; y < oy + range*2; y++) {
+        for (let x = ox - range*2; x < ox + range*2; x++) {
             let ydist = y-oy;
             let xdist = x-ox;
             if (ydist*ydist + xdist*xdist <= range*range) {
                 setWorldAlpha(x, y, 0)
+            } else if (ydist*ydist + xdist*xdist <= 1.5*range*range){
+                darkenWorld(x, y);
             }
         }
     }
