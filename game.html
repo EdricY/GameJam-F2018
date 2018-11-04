@@ -34,7 +34,7 @@
             margin: 0 auto;
             width: 50%;
             height: 33%;
-            background-color: lightgrey;
+            background-color: #555;
             border-radius: 10px;
             padding: 10px;
         }
@@ -310,9 +310,9 @@ function newPlayer() {
         vy: 0,
         w: 49,
 	    h: 32,
-        ax: .6,
+        ax: .8,
         jv: -18,
-        mvx: 50,
+        mvx: 40,
         mvy: 20,
         step_h: 12,
         midair: true,
@@ -492,7 +492,7 @@ function loadImages() {
 }
 
 function connect() {
-	connectmsg.innerText = "Connecting...";
+	connectmsg.innerText = "Connecting... (make sure you allow unsafe scripts)";
     var url = 'ws://' + myServer + ':8191';
     socket = new WebSocket(url);
     socket.onopen = function () {
@@ -511,6 +511,7 @@ function connect() {
         players_ul.style.display = 'none';
         gamediv.style.display = 'none';
         document.getElementById("body").style.backgroundColor = "#FFF";
+        if (connectmsg.innerText == "Connecting... (make sure you allow unsafe scripts)")
 		connectmsg.innerText = "Connection Closed. Couldn't reach server. Check the server address, and make sure you load the unsafe script.";
         buttonsdiv.hidden = true;
         playing = false;
@@ -1157,8 +1158,8 @@ function throwPlayer(x, y, range) {
         let dc = Math.sqrt(dx ** 2 + dy ** 2)
         let vx = dx / Math.abs(dx) / dc * 1000
         let vy = dy / Math.abs(dy) / dc * 500
-        player.vx += Math.max(Math.min(vx, 25), -25)
-        player.vy += Math.max(Math.min(vy, 25), -25)
+        player.vx += Math.max(Math.min(vx, 22), -22)
+        player.vy += Math.max(Math.min(vy, 22), -22)
         socket.send(newPacket(HURT_SOUND, myChoice))
     }
 }

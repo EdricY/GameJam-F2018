@@ -209,7 +209,7 @@ function tick() {
     if (playing) {
         difficulty += .0001
         camerax += cameravx;
-        cameravx = 1+difficulty;
+        cameravx = .5+difficulty;
         sendToAll(TICK, {
             cx: camerax,
             p: players,
@@ -257,7 +257,7 @@ function tick() {
                 y: 32 + Math.floor(Math.random() * (H-32))
             }
             ammos.push(newa)
-            ammoTimer = 200 + Math.floor(100 * Math.random())
+            ammoTimer = 150 + Math.floor(100 * Math.random())
         }
         powerupTimer--;
         if (powerupTimer <= 0) {
@@ -266,7 +266,7 @@ function tick() {
                 y: 32 + Math.floor(Math.random() * (H-32))
             }
             powerups.push(newp)
-            powerupTimer = 200 + Math.floor(100 * Math.random())
+            powerupTimer = 100 + Math.floor(100 * Math.random())
         }
     }
 }
