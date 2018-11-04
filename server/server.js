@@ -131,13 +131,13 @@ function resetServer() {
 }
 
 function generateFrameOrder() {
-    let frameChoices = 24;
+    let frameChoices = 28;
     let order = []
     order.push(1)
-    // for (let i = 0; i < 24; i++) {
+    // for (let i = 0; i < 28; i++) {
     //     order.push(i)
     // }
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 20; i++) {
         order.push(Math.floor(Math.random() * frameChoices))
     }
     return order;
@@ -209,7 +209,7 @@ function tick() {
     if (playing) {
         difficulty += .0001
         camerax += cameravx;
-        cameravx = .5+difficulty;
+        cameravx = 1+difficulty;
         sendToAll(TICK, {
             cx: camerax,
             p: players,

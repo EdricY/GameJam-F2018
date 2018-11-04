@@ -94,11 +94,12 @@
 <img hidden id='frame21' src='Frames/frame_21.png' alt='img'>
 <img hidden id='frame22' src='Frames/frame_22.png' alt='img'>
 <img hidden id='frame23' src='Frames/frame_23.png' alt='img'>
-<!-- <img hidden id='frame24' src='Frames/frame_24.png' alt='img'>
+<img hidden id='frame24' src='Frames/frame_24.png' alt='img'>
 <img hidden id='frame25' src='Frames/frame_25.png' alt='img'>
 <img hidden id='frame26' src='Frames/frame_26.png' alt='img'>
 <img hidden id='frame27' src='Frames/frame_27.png' alt='img'>
-<img hidden id='frame28' src='Frames/frame_28.png' alt='img'>
+
+<!-- <img hidden id='frame28' src='Frames/frame_28.png' alt='img'>
 <img hidden id='frame29' src='Frames/frame_29.png' alt='img'> -->
 
 
@@ -155,7 +156,7 @@ var myChoice = getParameterByName('c')
 var mySID;
 
 var playing = false;
-var returnTimer = 10000;
+var returnTimer = 3000;
 
 var W = renderer.width
 var H = renderer.height
@@ -280,10 +281,10 @@ const frameHtmlImgs = [
     frame21,
     frame22,
     frame23,
-    // frame24,
-    // frame25,
-    // frame26,
-    // frame27,
+    frame24,
+    frame25,
+    frame26,
+    frame27,
     // frame28,
     // frame29
 ]
@@ -1239,7 +1240,7 @@ function setupInputs() {
         let k = e.keyCode;
         keys[k] = true;
 
-        if (player.lives <= 0) {
+        if (scorelist.length > 0) {
             if (keys[32] && !lastKeys[32]) {
                 window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
             }
