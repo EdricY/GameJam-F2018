@@ -866,6 +866,7 @@ function update() {
         if (returnTimer <= 0) {
             returnTimer = 0;
             window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
+            clearInterval(gameInt)
         }
     } 
     if (player.update) player.update()
@@ -1243,7 +1244,8 @@ function setupInputs() {
 
         if (scorelist.length > 0) {
             if (keys[32] && !lastKeys[32]) {
-                window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
+                window.history.back();
+                // window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
             }
         }
     }

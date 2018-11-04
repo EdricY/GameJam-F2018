@@ -1,1 +1,0 @@
-frame resolution: 768 x 512 (3:2) Aspect Ratio

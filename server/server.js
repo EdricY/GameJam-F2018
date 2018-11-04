@@ -137,7 +137,7 @@ function generateFrameOrder() {
     // for (let i = 0; i < 28; i++) {
     //     order.push(i)
     // }
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
         order.push(Math.floor(Math.random() * frameChoices))
     }
     return order;
