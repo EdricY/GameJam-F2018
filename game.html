@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <meta charset="UTF-8">
-    <title>THE GAME TITLE!</title>
+    <title>Flying Cats and Dogs</title>
 	<link href="https://fonts.googleapis.com/css?family=Press+Start+2P" rel="stylesheet">
 
     <style>
@@ -122,6 +122,16 @@
 
 <script type="text/javascript" src="particles.js"></script>
 <script type="text/javascript">
+var backmusic = new Audio("resources/sound/cdfighed.mp3");
+var explosion_sound = new Audio("resources/sound/explosion.mp3");
+var dog_woof_sound = new Audio("resources/sound/dog_woof.mp3");
+var dog_death_sound = new Audio("resources/sound/dog_death.mp3");
+var cat_meow_sound = new Audio("resources/sound/cat_meow.mp3");
+var cat_death_sound = new Audio("resources/sound/cat_death.mp3");
+
+backmusic.loop = true;
+
+
 var canvas = document.getElementById('canvas')
 var renderer = document.getElementById('renderer')
 var frameloader = document.getElementById('frameloader')
@@ -136,6 +146,7 @@ var lastTime
 var mouseX = 0;
 var mouseY = 0;
 var TO_RADIANS = Math.PI/180; 
+var gameInt;
 
 var socket;
 var myServer = getParameterByName('s')
@@ -220,7 +231,9 @@ const SERVER_PLAYING = -4,
  DEATH = 3,
  AMMO = 4,
  POWERUP = 5,
- DEAD = 6;
+ DEAD = 6,
+ 
+ HURT_SOUND = 8;
 
 const GRAVITY = .85; //1
 const FRICTION = .85;
@@ -436,7 +449,7 @@ function newPlayer() {
 }
 
 function killplayer() {
-    socket.send(newPacket(DEATH, {x: player.x, y: player.y, c: player.color}))
+    socket.send(newPacket(DEATH, {x: player.x, y: player.y, c: player.color, ch: myChoice}))
     player.spawning = true;
     if (player.lives == 0) {
         player.draw = () => {};
@@ -497,10 +510,11 @@ function connect() {
         players_ul.style.display = 'none';
         gamediv.style.display = 'none';
         document.getElementById("body").style.backgroundColor = "#FFF";
-		// connectmsg.innerText = "Connection Closed. You can try reloading, but the server is probably down.";
+		connectmsg.innerText = "Connection Closed. Couldn't reach server. Make sure you load the unsafe script.";
         buttonsdiv.hidden = true;
         playing = false;
         if (gameInt) clearInterval(gameInt);
+        backmusic.pause();
     }
     socket.onmessage = e => { // Packet Reception
         let data = JSON.parse(e.data);
@@ -522,6 +536,7 @@ function connect() {
             connectdiv.hidden = true;
             initGame();
             player.x = data.obj.x
+            backmusic.play();
         } else if (data.type == TICK) {
             let obj = data.obj;
             camerax = obj.cx;
@@ -539,16 +554,37 @@ function connect() {
             powerups = obj.pows;
         } else if (data.type == EXPLODE) {
             explode(data.obj.x, data.obj.y, data.obj.r, data.obj.h)
+            explosion_sound.pause();
+            explosion_sound.play();
         } else if (data.type == DEATH) {
             Particles.spiral(data.obj.x, data.obj.y, data.obj.c, 100);
+            if (data.obj.ch == 0) {
+                dog_death_sound.pause();
+                dog_death_sound.play();
+            } else {
+                cat_death_sound.pause();
+                cat_death_sound.play();
+            }
+
         } else if (data.type == AMMO) {
-            player.ammo++;
-            makeAddNumber(1, W)
+            let rand = Math.floor(Math.random() * 3) + 1
+            player.ammo += rand;
+            makeAddNumber(rand, W)
         } else if (data.type == POWERUP) {
-            player.powerlevel ++;
-            makeAddNumber(1, W/2 + 98)
+            let rand = Math.floor(Math.random() * 3) + 1
+            player.powerlevel += rand;
+            makeAddNumber(rand, W/2 + 98)
         } else if (data.type == DEAD) {
             scorelist = data.obj;
+        } else if (data.type == HURT_SOUND) {
+            if (data.obj == 0) {
+                dog_woof_sound.pause();
+                dog_woof_sound.play();
+            } else {
+                cat_meow_sound.pause();
+                cat_meow_sound.play();
+            }
+
         }
     }
 }
@@ -1122,6 +1158,7 @@ function throwPlayer(x, y, range) {
         let vy = dy / Math.abs(dy) / dc * 500
         player.vx += Math.max(Math.min(vx, 25), -25)
         player.vy += Math.max(Math.min(vy, 25), -25)
+        socket.send(newPacket(HURT_SOUND, myChoice))
     }
 }
 

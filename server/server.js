@@ -14,6 +14,8 @@ const AMMO = 4;
 const POWERUP = 5;
 const DEAD = 6;
 
+const HURT_SOUND = 8;
+
 var playing = false;
 var camerax = 0;
 var cameravx = .5;
@@ -101,6 +103,8 @@ wss.on('connection', function connection(ws) {
             if (allDead()) {
                 sendToAll(DEAD, getScorelist())
             }
+        } else if (data.type == HURT_SOUND) {
+            sendToAll(HURT_SOUND, data.obj)
         }
     });
     ws.on('close', function closing(data) {
@@ -133,7 +137,7 @@ function generateFrameOrder() {
     // for (let i = 0; i < 24; i++) {
     //     order.push(i)
     // }
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 15; i++) {
         order.push(Math.floor(Math.random() * frameChoices))
     }
     return order;
