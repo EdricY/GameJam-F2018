@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const wss = new WebSocket.Server( { port : 8191 } );
+const wss = new WebSocket.Server( { port : 8193 } );
 console.log("Running game server on port " + wss.options.port)
 
 const SERVER_PLAYING = -4
