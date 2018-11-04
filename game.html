@@ -865,8 +865,8 @@ function update() {
         returnTimer--;
         if (returnTimer <= 0) {
             returnTimer = 0;
-            window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
             clearInterval(gameInt)
+            window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
         }
     } 
     if (player.update) player.update()
@@ -1160,7 +1160,7 @@ function explode(ox, oy, range, hitplayers=true) {
             let xdist = x-ox;
             if (ydist*ydist + xdist*xdist <= range*range) {
                 setWorldAlpha(x, y, 0)
-            } else if (ydist*ydist + xdist*xdist <= 1.5*range*range){
+            } else if (ydist*ydist + xdist*xdist <= 1.5*range*range) {
                 darkenWorld(x, y);
             }
         }
@@ -1261,8 +1261,7 @@ function setupInputs() {
 
         if (scorelist.length > 0) {
             if (keys[32] && !lastKeys[32]) {
-                window.history.back();
-                // window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
+                window.location = "http://cse.taylor.edu/~eyu/GameJam/GameJam-F2018/";
             }
         }
     }
